@@ -1,0 +1,229 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+  security-events: write
+
+jobs:
+  fmt:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+
+  sbom:
+    name: SBOM Generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx
+      - name: Generate SBOM
+        run: cargo cyclonedx --format json --spec-version 1.4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: "*.cdx.json"
+
+  clippy:
+    name: Clippy Lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy -- -D warnings
+
+  test:
+    name: Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+
+  geiger:
+    name: Unsafe Code Report
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-geiger
+        run: cargo install cargo-geiger
+      - name: Run cargo-geiger
+        shell: pwsh
+        run: cargo geiger 2>&1 | Tee-Object -FilePath geiger-report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsafe-report-${{ github.sha }}
+          path: geiger-report.txt
+
+  build:
+    name: Build Release
+    runs-on: windows-latest
+    needs: [fmt, clippy, audit, dependency-review, semgrep, test]
+    outputs:
+      sha256: ${{ steps.hash.outputs.sha256 }}
+      version: ${{ steps.meta.outputs.version }}
+      exe_name: ${{ steps.meta.outputs.exe_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Extract version
+        id: meta
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches.Groups[1].Value
+          $exeName = "CD_TomTom_$version.exe"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "exe_name=$exeName"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - name: Build
+        run: cargo build --release
+      - name: Rename executable
+        shell: pwsh
+        run: Copy-Item target/release/CD_TomTom.exe "target/release/${{ steps.meta.outputs.exe_name }}"
+      - name: Compute SHA-256
+        id: hash
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "target/release/${{ steps.meta.outputs.exe_name }}" -Algorithm SHA256).Hash.ToLower()
+          "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CD_TomTom-${{ github.sha }}
+          path: target/release/${{ steps.meta.outputs.exe_name }}
+          if-no-files-found: error
+
+  reproducible-build:
+    name: Reproducible Build Check
+    runs-on: windows-latest
+    needs: build
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build #1
+        env:
+          SOURCE_DATE_EPOCH: "0"
+        run: cargo build --release --target-dir target-r1
+      - name: Build #2
+        env:
+          SOURCE_DATE_EPOCH: "0"
+        run: cargo build --release --target-dir target-r2
+      - name: Compare hashes
+        shell: pwsh
+        run: |
+          $h1 = (Get-FileHash target-r1/release/CD_TomTom.exe -Algorithm SHA256).Hash
+          $h2 = (Get-FileHash target-r2/release/CD_TomTom.exe -Algorithm SHA256).Hash
+          if ($h1 -ne $h2) {
+            Write-Error "NOT reproducible: $h1 vs $h2"
+            exit 1
+          }
+          Write-Host "Reproducible build confirmed: $h1"
+
+  sign:
+    name: Sign (Sigstore)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CD_TomTom-${{ github.sha }}
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign artifact
+        run: |
+          cosign sign-blob --yes \
+            "${{ needs.build.outputs.exe_name }}" \
+            --output-certificate "${{ needs.build.outputs.exe_name }}.pem" \
+            --output-signature  "${{ needs.build.outputs.exe_name }}.sig"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CD_TomTom-signatures-${{ github.sha }}
+          path: |
+            ${{ needs.build.outputs.exe_name }}.pem
+            ${{ needs.build.outputs.exe_name }}.sig
+
+  virustotal:
+    name: VirusTotal Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CD_TomTom-${{ github.sha }}
+      - name: Scan
+        id: vt
+        uses: crazy-max/ghaction-virustotal@v4
+        with:
+          vt_api_key: ${{ secrets.VT_API_KEY }}
+          files: ${{ needs.build.outputs.exe_name }}
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          VT_ANALYSIS: ${{ steps.vt.outputs.analysis }}
+          EXE_SHA256: ${{ needs.build.outputs.sha256 }}
+          EXE_NAME: ${{ needs.build.outputs.exe_name }}
+        with:
+          script: |
+            const analysis = JSON.parse(process.env.VT_ANALYSIS);
+            const url = Object.values(analysis)[0];
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '## VirusTotal Scan Results',
+                '',
+                `**File:** \`${process.env.EXE_NAME}\``,
+                `**SHA-256:** \`${process.env.EXE_SHA256}\``,
+                `**Full report:** ${url}`,
+                '',
+                '> Some detections are expected false positives: this tool uses Win32',
+                '> process memory read APIs for game data access. The full source code',
+                '> is available in this PR for review.',
+              ].join('\n'),
+            });
