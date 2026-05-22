@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+    version="1.0.0.0"
+    processorArchitecture="amd64"
+    name="Crimson Desert TomTom Arrow"
+    type="win32"
+  />
+  <description>Crimson Desert TomTom Arrow - Real-time Navigation Overlay</description>
+  
+  <!-- Request administrator privileges -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:security">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>

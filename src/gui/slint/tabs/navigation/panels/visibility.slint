@@ -1,0 +1,93 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Visibility panel — auto-hide distance and inactivity timeout controls.
+
+import { IconSet } from "@lucide";
+import { Theme } from "../../../common/theme.slint";
+import { PanelCard, PanelContent, PanelHeader, CtrlRow, CtrlIcon, TomSpin, TomCheck } from "../../../common/widgets.slint";
+
+export component VisibilityPanel inherits PanelCard {
+    bg: #1e2022;
+
+    in-out property <int>  hide-below: 10;
+    in-out property <bool> sticky-hide: true;
+    in-out property <int>  inactive-ms: 1200;
+    in-out property <bool> hide-on-inactive: true;
+
+    callback hide-below-changed(int);
+    callback sticky-hide-changed(bool);
+    callback inactive-ms-changed(int);
+    callback hide-on-inactive-changed(bool);
+
+    VerticalLayout {
+        padding: 0; spacing: 0;
+        PanelHeader { icon: IconSet.EyeOff; title: "VISIBILITY"; }
+        PanelContent {
+            bg: #191a1c;
+            CtrlRow {
+                CtrlIcon { icon: IconSet.MapPinOff; }
+                Text {
+                    text: "AUTO-HIDE (m)";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 118px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.hide-below; minimum: 0;
+                        maximum: 500; step: 1;
+                        value-changed(v) => { root.hide-below-changed(v); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomCheck {
+                        label: "STICKY-HIDE";
+                        checked: root.sticky-hide;
+                        toggled(v) => { root.sticky-hide-changed(v); }
+                    }
+                }
+            }
+            CtrlRow {
+                CtrlIcon { icon: IconSet.TimerOff; }
+                Text {
+                    text: "INACTIVITY (ms)";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 118px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.inactive-ms; minimum: 0;
+                        maximum: 10000; step: 100;
+                        value-changed(v) => { root.inactive-ms-changed(v); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomCheck {
+                        label: "HIDE WHEN INACTIVE";
+                        checked: root.hide-on-inactive;
+                        toggled(v) => { root.hide-on-inactive-changed(v); }
+                    }
+                }
+            }
+        }
+    }
+}

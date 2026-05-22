@@ -1,0 +1,184 @@
+name: Release
+
+# Triggered when a PR is merged into main.
+# Promotes the EXACT binary that was already built and VirusTotal-scanned
+# by the CI workflow on the PR — no rebuild, same checksum.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    name: Promote CI Artifact & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from Cargo.toml
+        id: version
+        run: |
+          ver=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver"    >> "$GITHUB_OUTPUT"
+          echo "Version: $ver"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" 2>/dev/null; then
+            echo "exists=true"  >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.version.outputs.tag }} already exists — skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Find the PR that was just merged and the successful CI run that built+scanned it.
+      - name: Find merged PR and CI run
+        if: steps.check.outputs.exists == 'false'
+        id: ci_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub associates the push commit with the PR that was merged
+          pr=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls \
+               --jq '.[0]' 2>/dev/null || echo '{}')
+          pr_number=$(echo "$pr" | jq -r '.number // empty')
+          pr_head_sha=$(echo "$pr" | jq -r '.head.sha // empty')
+
+          if [ -z "$pr_number" ]; then
+            echo "No PR found for commit ${{ github.sha }} — this may be a direct push."
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Merged PR #$pr_number, PR head SHA: $pr_head_sha"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "pr_head_sha=$pr_head_sha" >> "$GITHUB_OUTPUT"
+
+          # Find the successful CI run that scanned that exact commit
+          run_id=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$pr_head_sha" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")] | .[0].id // empty')
+
+          if [ -z "$run_id" ]; then
+            echo "WARNING: No successful CI run found for SHA $pr_head_sha"
+          else
+            echo "CI run ID: $run_id"
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download exe artifact
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: CD_TomTom-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Download Sigstore signatures
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: CD_TomTom-signatures-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Download SBOM
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: sbom-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Download VT URL
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: vt-url-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Prepare release metadata
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        id: prep
+        run: |
+          ver="${{ steps.version.outputs.version }}"
+          exe="dist/CD_TomTom_${ver}.exe"
+
+          # SHA-256 checksum
+          hash=$(sha256sum "$exe" | awk '{print toupper($1)}')
+          echo "$hash  CD_TomTom_${ver}.exe" > "dist/CD_TomTom_${ver}.exe.sha256"
+          echo "sha256=$hash" >> "$GITHUB_OUTPUT"
+
+          # VT URL (optional — only present if VT_API_KEY was configured)
+          vt_line="_VirusTotal scan not available (VT\_API\_KEY not configured)_"
+          if [ -f dist/vt-url.txt ]; then
+            vt_url=$(cat dist/vt-url.txt | tr -d '[:space:]')
+            vt_line="**VirusTotal scan (PR #${{ steps.ci_run.outputs.pr_number }}):** ${vt_url}"
+            rm dist/vt-url.txt
+          fi
+          echo "vt_line=$vt_line" >> "$GITHUB_OUTPUT"
+
+          # Cosign verify instructions (only if .sig and .pem were downloaded)
+          if [ -f "dist/CD_TomTom_${ver}.exe.sig" ]; then
+            echo "has_sig=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_sig=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "SHA-256: $hash"
+          ls -la dist/
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          body: |
+            ## Checksum
+
+            ```
+            ${{ steps.prep.outputs.sha256 }}  CD_TomTom_${{ steps.version.outputs.version }}.exe
+            ```
+
+            ${{ steps.prep.outputs.vt_line }}
+
+            ${{ steps.prep.outputs.has_sig == 'true' && '### Verify with Sigstore/cosign' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '```bash' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('cosign verify-blob "CD_TomTom_{0}.exe" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('  --certificate "CD_TomTom_{0}.exe.pem" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('  --signature   "CD_TomTom_{0}.exe.sig" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '  --certificate-identity-regexp "https://github.com/Korreca/cd-tomtom-arrow" \\' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '```' || '' }}
+
+            > [!NOTE]
+            > This binary is the **exact same artifact** built and VirusTotal-scanned
+            > during the PR review — no rebuild, same checksum.
+            > This tool reads game memory via Win32 `ReadProcessMemory` — some AV engines
+            > may flag it as a false positive. Full source code is available in this repo.
+          files: |
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.sha256
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.pem
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.sig
+            dist/*.cdx.json

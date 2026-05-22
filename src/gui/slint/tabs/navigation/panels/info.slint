@@ -1,0 +1,153 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Info Panel — offset X/Y, scale, and hide toggle.
+
+import { IconSet } from "@lucide";
+import { Theme } from "../../../common/theme.slint";
+import { PanelCard, PanelContent, IconBadge, CtrlRow, CtrlIcon, TomSpin, TomSlider } from "../../../common/widgets.slint";
+
+export component InfoPanelWidget inherits PanelCard {
+    bg: #202123;
+
+    in-out property <int>   info-offset-x: 0;
+    in-out property <int>   info-offset-y: 0;
+    in-out property <float> info-scale: 1.0;
+    in-out property <bool>  info-hidden: false;
+
+    in property <string> info-scale-label: "1.00x";
+
+    callback info-offset-x-changed(int);
+    callback info-offset-y-changed(int);
+    callback info-scale-changed(float);
+    callback info-hidden-changed(bool);
+
+    VerticalLayout {
+        padding: 0; spacing: 0;
+
+        // Header with inline hide toggle
+        Rectangle {
+            height: 44px;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 14px;
+                spacing: 6px;
+                Rectangle {
+                    width: 38px; horizontal-stretch: 0;
+                    IconBadge {
+                        x: 0; y: (parent.height - 38px) / 2;
+                        icon: IconSet.Info; badge-size: 38px;
+                    }
+                }
+                Text {
+                    text: "INFO PANEL"; color: Theme.teal;
+                    font-size: 18px; font-weight: 700;
+                    vertical-alignment: center; letter-spacing: 1.5px;
+                    horizontal-stretch: 0;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                // Hide switch
+                Rectangle {
+                    width: 70px; horizontal-stretch: 0;
+                    HorizontalLayout {
+                        alignment: center; spacing: 8px;
+                        Text {
+                            text: "HIDE"; color: Theme.label;
+                            font-size: 12px; font-weight: 700;
+                            vertical-alignment: center; letter-spacing: 0.5px;
+                        }
+                        Rectangle {
+                            y: (parent.height - 18px) / 2;
+                            width: 34px; height: 18px; border-radius: 9px;
+                            background: root.info-hidden ? Theme.teal : #252729;
+                            border-color: root.info-hidden ? Theme.teal-dark : #1e2022;
+                            border-width: 1px;
+                            animate background { duration: 120ms; }
+                            Rectangle {
+                                x: root.info-hidden ? parent.width - 16px : 2px;
+                                y: 2px; width: 14px; height: 14px; border-radius: 7px;
+                                background: root.info-hidden ? #0e1f20 : #5a6070;
+                                animate x { duration: 120ms; easing: ease-in-out; }
+                            }
+                            ta := TouchArea {
+                                clicked => { root.info-hidden = !root.info-hidden; root.info-hidden-changed(root.info-hidden); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        PanelContent {
+            CtrlRow {
+                CtrlIcon { icon: IconSet.MoveHorizontal; }
+                Text {
+                    text: "OFFSET X";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 76px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.info-offset-x; minimum: -200;
+                        maximum: 200; step: 1;
+                        value-changed(v) => { root.info-offset-x-changed(v); }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                CtrlIcon { icon: IconSet.MoveVertical; }
+                Text {
+                    text: "OFFSET Y";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 76px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.info-offset-y; minimum: -200;
+                        maximum: 200; step: 1;
+                        value-changed(v) => { root.info-offset-y-changed(v); }
+                    }
+                }
+            }
+            CtrlRow {
+                CtrlIcon { icon: IconSet.MoveDiagonal; }
+                Text {
+                    text: "TEXT SIZE";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 84px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    TomSlider {
+                        value: root.info-scale;
+                        minimum: 0.5; maximum: 2.5;
+                        value-changed(v) => { root.info-scale-changed(v); }
+                    }
+                }
+                Text {
+                    text: root.info-scale-label; color: Theme.label;
+                    font-size: 15px; font-weight: 700;
+                    width: 52px; horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
