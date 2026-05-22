@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# Pre-commit hook: runs fast local checks before every commit.
+# Activate with: git config core.hooksPath .githooks
+
+set -e
+
+echo "[ pre-commit ] cargo fmt --check ..."
+cargo fmt --all -- --check || {
+    echo ""
+    echo "  Formatting issues found. Run 'cargo fmt' to fix them, then re-stage."
+    exit 1
+}
+
+echo "[ pre-commit ] cargo clippy ..."
+cargo clippy --all-targets -- -D warnings || {
+    echo ""
+    echo "  Clippy errors found. Fix them before committing."
+    exit 1
+}
+
+echo "[ pre-commit ] OK"

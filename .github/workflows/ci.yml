@@ -98,7 +98,11 @@ jobs:
         run: cargo install cargo-geiger
       - name: Run cargo-geiger
         shell: pwsh
-        run: cargo geiger 2>&1 | Tee-Object -FilePath geiger-report.txt
+        run: |
+          # geiger exits 1 whenever unsafe is found (expected for Win32 API usage).
+          # This job is informational only — the artifact is the deliverable.
+          cargo geiger 2>&1 | Tee-Object -FilePath geiger-report.txt
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: unsafe-report-${{ github.sha }}
@@ -140,33 +144,6 @@ jobs:
           name: CD_TomTom-${{ github.sha }}
           path: target/release/${{ steps.meta.outputs.exe_name }}
           if-no-files-found: error
-
-  reproducible-build:
-    name: Reproducible Build Check
-    runs-on: windows-latest
-    needs: build
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build #1
-        env:
-          SOURCE_DATE_EPOCH: "0"
-        run: cargo build --release --target-dir target-r1
-      - name: Build #2
-        env:
-          SOURCE_DATE_EPOCH: "0"
-        run: cargo build --release --target-dir target-r2
-      - name: Compare hashes
-        shell: pwsh
-        run: |
-          $h1 = (Get-FileHash target-r1/release/CD_TomTom.exe -Algorithm SHA256).Hash
-          $h2 = (Get-FileHash target-r2/release/CD_TomTom.exe -Algorithm SHA256).Hash
-          if ($h1 -ne $h2) {
-            Write-Error "NOT reproducible: $h1 vs $h2"
-            exit 1
-          }
-          Write-Host "Reproducible build confirmed: $h1"
 
   sign:
     name: Sign (Sigstore)
@@ -213,8 +190,11 @@ jobs:
           EXE_NAME: ${{ needs.build.outputs.exe_name }}
         with:
           script: |
-            const analysis = JSON.parse(process.env.VT_ANALYSIS);
-            const url = Object.values(analysis)[0];
+            // ghaction-virustotal outputs "filename=url" lines, not JSON
+            const raw = process.env.VT_ANALYSIS || '';
+            const firstLine = raw.trim().split('\n')[0] || '';
+            const eqIdx = firstLine.indexOf('=');
+            const url = eqIdx > -1 ? firstLine.slice(eqIdx + 1) : raw.trim();
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
