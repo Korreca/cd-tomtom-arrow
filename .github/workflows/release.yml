@@ -75,7 +75,7 @@ jobs:
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
-      - name: Download artifact from CI run
+      - name: Download exe artifact
         if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
         uses: actions/download-artifact@v4
         with:
@@ -84,15 +84,66 @@ jobs:
           github-token: ${{ github.token }}
           path: dist/
 
-      - name: Generate SHA-256 and checksum file
+      - name: Download Sigstore signatures
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: CD_TomTom-signatures-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Download SBOM
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: sbom-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Download VT URL
+        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          name: vt-url-${{ steps.ci_run.outputs.pr_head_sha }}
+          github-token: ${{ github.token }}
+          path: dist/
+
+      - name: Prepare release metadata
         if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
         id: prep
         run: |
-          exe="dist/CD_TomTom_${{ steps.version.outputs.version }}.exe"
+          ver="${{ steps.version.outputs.version }}"
+          exe="dist/CD_TomTom_${ver}.exe"
+
+          # SHA-256 checksum
           hash=$(sha256sum "$exe" | awk '{print toupper($1)}')
-          echo "$hash  CD_TomTom_${{ steps.version.outputs.version }}.exe" > "dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.sha256"
+          echo "$hash  CD_TomTom_${ver}.exe" > "dist/CD_TomTom_${ver}.exe.sha256"
           echo "sha256=$hash" >> "$GITHUB_OUTPUT"
+
+          # VT URL (optional — only present if VT_API_KEY was configured)
+          vt_line="_VirusTotal scan not available (VT\_API\_KEY not configured)_"
+          if [ -f dist/vt-url.txt ]; then
+            vt_url=$(cat dist/vt-url.txt | tr -d '[:space:]')
+            vt_line="**VirusTotal scan (PR #${{ steps.ci_run.outputs.pr_number }}):** ${vt_url}"
+            rm dist/vt-url.txt
+          fi
+          echo "vt_line=$vt_line" >> "$GITHUB_OUTPUT"
+
+          # Cosign verify instructions (only if .sig and .pem were downloaded)
+          if [ -f "dist/CD_TomTom_${ver}.exe.sig" ]; then
+            echo "has_sig=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_sig=false" >> "$GITHUB_OUTPUT"
+          fi
+
           echo "SHA-256: $hash"
+          ls -la dist/
 
       - name: Create GitHub Release
         if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
@@ -101,18 +152,33 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           body: |
-            ## SHA-256 Checksum
+            ## Checksum
 
             ```
             ${{ steps.prep.outputs.sha256 }}  CD_TomTom_${{ steps.version.outputs.version }}.exe
             ```
 
+            ${{ steps.prep.outputs.vt_line }}
+
+            ${{ steps.prep.outputs.has_sig == 'true' && '### Verify with Sigstore/cosign' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '```bash' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('cosign verify-blob "CD_TomTom_{0}.exe" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('  --certificate "CD_TomTom_{0}.exe.pem" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && format('  --signature   "CD_TomTom_{0}.exe.sig" \', steps.version.outputs.version) || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '  --certificate-identity-regexp "https://github.com/Korreca/cd-tomtom-arrow" \\' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"' || '' }}
+            ${{ steps.prep.outputs.has_sig == 'true' && '```' || '' }}
+
             > [!NOTE]
-            > This binary is the **exact same artifact** built and scanned by VirusTotal
-            > during the PR review. The checksum above matches the VT submission.
+            > This binary is the **exact same artifact** built and VirusTotal-scanned
+            > during the PR review — no rebuild, same checksum.
             > This tool reads game memory via Win32 `ReadProcessMemory` — some AV engines
             > may flag it as a false positive. Full source code is available in this repo.
           files: |
             dist/CD_TomTom_${{ steps.version.outputs.version }}.exe
             dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.sha256
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.pem
+            dist/CD_TomTom_${{ steps.version.outputs.version }}.exe.sig
+            dist/*.cdx.json
