@@ -76,44 +76,41 @@ jobs:
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
-      - name: Download exe artifact
+      - name: Download artifacts from CI run
         if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
-        uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ steps.ci_run.outputs.run_id }}
-          name: CD_TomTom-${{ steps.ci_run.outputs.pr_head_sha }}
-          github-token: ${{ github.token }}
-          path: dist/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          run_id="${{ steps.ci_run.outputs.run_id }}"
+          sha="${{ steps.ci_run.outputs.pr_head_sha }}"
 
-      - name: Download Sigstore signatures
-        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ steps.ci_run.outputs.run_id }}
-          name: CD_TomTom-signatures-${{ steps.ci_run.outputs.pr_head_sha }}
-          github-token: ${{ github.token }}
-          path: dist/
+          # Required: main exe
+          gh run download "$run_id" \
+            --repo "${{ github.repository }}" \
+            --name "CD_TomTom-${sha}" \
+            --dir dist/
 
-      - name: Download SBOM
-        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ steps.ci_run.outputs.run_id }}
-          name: sbom-${{ steps.ci_run.outputs.pr_head_sha }}
-          github-token: ${{ github.token }}
-          path: dist/
+          # Optional: Sigstore signatures
+          gh run download "$run_id" \
+            --repo "${{ github.repository }}" \
+            --name "CD_TomTom-signatures-${sha}" \
+            --dir dist/ || echo "Signatures artifact not available"
 
-      - name: Download VT URL
-        if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ steps.ci_run.outputs.run_id }}
-          name: vt-url-${{ steps.ci_run.outputs.pr_head_sha }}
-          github-token: ${{ github.token }}
-          path: dist/
+          # Optional: SBOM
+          gh run download "$run_id" \
+            --repo "${{ github.repository }}" \
+            --name "sbom-${sha}" \
+            --dir dist/ || echo "SBOM artifact not available"
+
+          # Optional: VT URL
+          gh run download "$run_id" \
+            --repo "${{ github.repository }}" \
+            --name "vt-url-${sha}" \
+            --dir dist/ || echo "VT URL artifact not available"
+
+          echo "Downloaded files:"
+          ls -la dist/
 
       - name: Prepare release metadata
         if: steps.check.outputs.exists == 'false' && steps.ci_run.outputs.run_id != ''
