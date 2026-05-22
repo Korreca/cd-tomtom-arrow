@@ -83,30 +83,45 @@ jobs:
         run: |
           mkdir -p dist
           run_id="${{ steps.ci_run.outputs.run_id }}"
-          sha="${{ steps.ci_run.outputs.pr_head_sha }}"
+
+          # In a pull_request event, github.sha is a temporary test-merge commit —
+          # NOT pr.head.sha. Discover the actual artifact name from the run itself.
+          exe_artifact=$(gh api \
+            "repos/${{ github.repository }}/actions/runs/${run_id}/artifacts" \
+            --jq '[.artifacts[] | select(.name | startswith("CD_TomTom-")) | select(.name | test("CD_TomTom-signatures-") | not)] | .[0].name // empty')
+
+          if [ -z "$exe_artifact" ]; then
+            echo "ERROR: No CD_TomTom artifact found in run $run_id"
+            gh api "repos/${{ github.repository }}/actions/runs/${run_id}/artifacts" \
+              --jq '[.artifacts[].name]'
+            exit 1
+          fi
+
+          actual_sha="${exe_artifact#CD_TomTom-}"
+          echo "Found artifact: $exe_artifact (SHA suffix: $actual_sha)"
 
           # Required: main exe
           gh run download "$run_id" \
             --repo "${{ github.repository }}" \
-            --name "CD_TomTom-${sha}" \
+            --name "$exe_artifact" \
             --dir dist/
 
           # Optional: Sigstore signatures
           gh run download "$run_id" \
             --repo "${{ github.repository }}" \
-            --name "CD_TomTom-signatures-${sha}" \
+            --name "CD_TomTom-signatures-${actual_sha}" \
             --dir dist/ || echo "Signatures artifact not available"
 
           # Optional: SBOM
           gh run download "$run_id" \
             --repo "${{ github.repository }}" \
-            --name "sbom-${sha}" \
+            --name "sbom-${actual_sha}" \
             --dir dist/ || echo "SBOM artifact not available"
 
           # Optional: VT URL
           gh run download "$run_id" \
             --repo "${{ github.repository }}" \
-            --name "vt-url-${sha}" \
+            --name "vt-url-${actual_sha}" \
             --dir dist/ || echo "VT URL artifact not available"
 
           echo "Downloaded files:"
