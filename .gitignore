@@ -37,6 +37,7 @@ ui/lucide.slint
 
 # PyInstaller
 *.manifest
+!CD_TomTom.exe.manifest
 build/
 dist/
 
