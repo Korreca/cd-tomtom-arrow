@@ -79,9 +79,10 @@ impl Scanner {
 
     /// AOB for camera heading read: stores camera rotation
     /// Offset +0 points to the hook location
+    /// Updated for game version 1.08.00: vmovss [r15+0x4CC], xmm2
     const CAMERA: Pattern = Pattern {
         name: "camera",
-        pattern: b"\xC4\xC1\x7A\x11\x97\xA4\x04\x00\x00\xC5\x78\x2F\xCE",
+        pattern: b"\xC4\xC1\x7A\x11\x97\xCC\x04\x00\x00\xC5\x78\x2F\xCE",
         offset: 0,
     };
 

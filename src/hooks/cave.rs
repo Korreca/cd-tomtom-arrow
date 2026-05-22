@@ -213,8 +213,8 @@ impl CaveGenerator {
         code.extend_from_slice(b"\x48\xB9");
         code.extend_from_slice(&block_addr.to_le_bytes());
 
-        // Original hooked instruction: movaps [r23 + 0x4A4], xmm18
-        code.extend_from_slice(b"\xC4\xC1\x7A\x11\x97\xA4\x04\x00\x00");
+        // Original hooked instruction: vmovss [r15 + 0x4CC], xmm2
+        code.extend_from_slice(b"\xC4\xC1\x7A\x11\x97\xCC\x04\x00\x00");
 
         // Store camera heading (float) to block
         code.extend_from_slice(b"\xC5\xFA\x11\x11");
