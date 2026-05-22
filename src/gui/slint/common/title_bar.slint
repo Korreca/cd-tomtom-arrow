@@ -1,0 +1,127 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// CD TomTom — Custom title bar: app name, version badge, window buttons, drag-to-move.
+
+import { IconDisplay, IconSet } from "@lucide";
+import { Theme } from "./theme.slint";
+
+export component TitleBar inherits Rectangle {
+    height: 46px;
+    background: Theme.titlebar-bg;
+
+    in property <string> app-version: "";
+
+    callback window-close();
+    callback window-minimize();
+    callback title-drag-start();
+    callback title-drag-delta(float, float);
+
+    // Private drag-anchor state
+    property <float> _drag-ox: 0.0;
+    property <float> _drag-oy: 0.0;
+
+    // Bottom separator line
+    Rectangle {
+        y: parent.height - 1px; height: 1px; width: parent.width;
+        background: Theme.titlebar-sep;
+    }
+
+    // Logo + title + version
+    HorizontalLayout {
+        x: 0; y: 0;
+        width: parent.width - 132px; height: 46px;
+        padding-left: 18px; spacing: 12px; alignment: start;
+
+        Text {
+            text: "CRIMSON DESERT TOMTOM";
+            color: Theme.titlebar-text; font-size: 18px; font-weight: 700;
+            vertical-alignment: center; letter-spacing: 0.5px;
+        }
+        Text {
+            text: root.app-version;
+            color: #2A8890; font-size: 14px;
+            vertical-alignment: center;
+        }
+        Rectangle { horizontal-stretch: 1; }
+    }
+
+    // Window buttons (top-right 132px)
+    HorizontalLayout {
+        x: parent.width - 132px; y: 0;
+        width: 132px; height: 46px;
+        spacing: 0; alignment: stretch;
+
+        min-ta := TouchArea {
+            width: 44px;
+            clicked => { root.window-minimize(); }
+            Rectangle {
+                background: min-ta.has-hover ? #ffffff12 : transparent;
+                IconDisplay {
+                    x: (parent.width - 16px) / 2; y: (parent.height - 16px) / 2;
+                    icon: IconSet.Minus; size: 16px;
+                    stroke: min-ta.has-hover ? Theme.wbtn-hover : Theme.wbtn-icon;
+                    stroke-width: 1.5; absolute-stroke-width: true;
+                }
+            }
+        }
+        max-ta := TouchArea {
+            width: 44px;
+            Rectangle {
+                background: max-ta.has-hover ? #ffffff12 : transparent;
+                IconDisplay {
+                    x: (parent.width - 16px) / 2; y: (parent.height - 16px) / 2;
+                    icon: IconSet.Square; size: 16px;
+                    stroke: max-ta.has-hover ? Theme.wbtn-hover : Theme.wbtn-icon;
+                    stroke-width: 1.5; absolute-stroke-width: true;
+                }
+            }
+        }
+        close-ta := TouchArea {
+            width: 44px;
+            clicked => { root.window-close(); }
+            Rectangle {
+                background: close-ta.has-hover ? Theme.close-red : transparent;
+                IconDisplay {
+                    x: (parent.width - 20px) / 2; y: (parent.height - 20px) / 2;
+                    icon: IconSet.X; size: 20px;
+                    stroke: close-ta.has-hover ? #ffffff : Theme.wbtn-icon;
+                    stroke-width: 1.5; absolute-stroke-width: true;
+                }
+            }
+        }
+    }
+
+    // Drag zone (left portion — not covered by window buttons)
+    drag-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width - 132px; height: parent.height;
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.down {
+                root._drag-ox = self.mouse-x / 1px;
+                root._drag-oy = self.mouse-y / 1px;
+                root.title-drag-start();
+            }
+        }
+        moved => {
+            if self.pressed {
+                root.title-drag-delta(
+                    self.mouse-x / 1px - root._drag-ox,
+                    self.mouse-y / 1px - root._drag-oy);
+            }
+        }
+    }
+}

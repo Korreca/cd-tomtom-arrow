@@ -1,0 +1,68 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Shared design tokens — single source of truth for all colors and durations.
+
+export global Theme {
+    out property <color> teal:         #1AC4BE;
+    out property <color> panel-border: #353a3f;
+    out property <color> inner-bg:     #181a1c;
+    out property <color> inner-border: #0c0d0f;
+    out property <color> icon-muted:   #6e7580;
+
+    // Semantic status colors (success / error)
+    out property <color> success-bg:     #0e1e12;
+    out property <color> success-border: #1E6B3A;
+    out property <color> success-text:   #2ED573;
+    out property <color> error-bg:       #1e0808;
+    out property <color> error-border:   #8B2020;
+    out property <color> error-text:     #e05050;
+    out property <int>   snackbar-duration-ms: 2000;
+
+    // Backgrounds
+    out property <color> window-bg:     #1f2022;  // main window + panel-card default bg
+    out property <color> titlebar-bg:   #0e0f11;  // title bar + dialog title bar
+    out property <color> titlebar-sep:  #1a1c1e;  // separator lines under title bars
+    out property <color> row-border:    #191b1c;  // NavRow / CtrlRow / SliderCard inner border
+    out property <color> dialog-bg:     #25282b;  // modal dialog box body
+    out property <color> spin-bg:       #111315;  // TomSpin / CoordInput background
+
+    // Interactive buttons (teal-tinted dark)
+    out property <color> btn-border:    #2A6870;  // TomSpin / CoordInput / button border
+    out property <color> btn-bg:        #162028;  // button default bg
+    out property <color> btn-hover:     #1b2c30;  // button hovered bg
+    out property <color> btn-press:     #0e1a1e;  // button pressed bg
+
+    // Teal variants
+    out property <color> teal-hover:    #22D4CE;  // lighter teal on hover
+    out property <color> teal-dark:     #16A09A;  // darker teal (borders, checked outlines)
+    out property <color> teal-accent:   #50C0BC;  // muted teal (reconnect, unlock state)
+
+    // Text & icons
+    out property <color> label:         #868d97;  // muted label / ctrl-row text
+    out property <color> value:         #9aa0ab;  // spinbox / input value text
+    out property <color> icon-hover:    #b0b8c4;  // row action icon on hover
+    out property <color> titlebar-text: #b1b5ba;  // title bar app name
+    out property <color> wbtn-icon:     #505868;  // window button default icon
+    out property <color> wbtn-hover:    #c8cfd8;  // window button hover icon
+    out property <color> close-red:     #c42b1c;  // close button red hover bg
+    out property <color> tab-inactive:  #5a6070;  // inactive tab text / icon
+
+    // Confirm / primary-action button (OK / submit)
+    out property <color> confirm-bg:    #0a201c;  // confirm button default bg
+    out property <color> confirm-hover: #0f3028;  // confirm button hover bg
+    out property <color> confirm-press: #0b2820;  // confirm button pressed bg
+}

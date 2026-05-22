@@ -1,0 +1,107 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+.env/
+venv/
+ENV/
+env/
+
+# Rust
+target/
+
+# Generated lucide icon library (auto-copied by build.rs from cargo registry)
+ui/lucide.slint
+*.pdb
+
+# PyInstaller
+*.manifest
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+*.pot
+*.mo
+*.pickle
+.coverage
+htmlcov/
+
+# Testing
+.pytest_cache/
+.tox/
+.hypothesis/
+.coverage
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pylint
+.pylintrc
+.pylint.d/
+
+# IPython
+.ipynb_checkpoints/
+.ipython/
+
+# Windows
+*.lnk
+$RECYCLE.BIN/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.env
+
+# Local development
+.local/
+.cache/
+*.pid
+
+# Generated files
+*.generated

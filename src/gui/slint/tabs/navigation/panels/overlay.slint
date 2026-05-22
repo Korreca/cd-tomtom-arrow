@@ -1,0 +1,111 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Overlay panel — opacity, scale, and lock toggle.
+
+import { IconDisplay, IconSet } from "@lucide";
+import { Theme } from "../../../common/theme.slint";
+import { PanelCard, PanelContent, IconBadge, SliderCard } from "../../../common/widgets.slint";
+
+export component OverlayPanel inherits PanelCard {
+    in-out property <float> ov-opacity: 0.5;
+    in-out property <float> scale: 1.0;
+    in-out property <bool>  locked: true;
+
+    in property <string> ov-opacity-label: "50%";
+    in property <string> scale-label: "1.00x";
+
+    callback lock-toggled();
+    callback ov-opacity-changed(float);
+    callback scale-changed(float);
+
+    VerticalLayout {
+        padding: 0; spacing: 0;
+
+        // Header with inline lock button
+        Rectangle {
+            height: 44px;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 10px;
+                spacing: 6px;
+                Rectangle {
+                    width: 38px; horizontal-stretch: 0;
+                    IconBadge {
+                        x: 0; y: (parent.height - 38px) / 2;
+                        icon: IconSet.Eye; badge-size: 38px;
+                    }
+                }
+                Text {
+                    text: "OVERLAY"; color: Theme.teal;
+                    font-size: 18px; font-weight: 700;
+                    vertical-alignment: center; letter-spacing: 1.5px;
+                    horizontal-stretch: 0;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                ov-lock-ta := TouchArea {
+                    width: 100px; horizontal-stretch: 0;
+                    clicked => { root.lock-toggled(); }
+                    Rectangle {
+                        y: (parent.height - 28px) / 2; height: 28px;
+                        border-radius: 5px;
+                        background: root.locked
+                            ? (ov-lock-ta.pressed ? #2a0808 : ov-lock-ta.has-hover ? #2e1010 : Theme.error-bg)
+                            : (ov-lock-ta.pressed ? #162628 : ov-lock-ta.has-hover ? #1e3032 : #192E32);
+                        border-color: root.locked ? Theme.error-border : #2A8090;
+                        border-width: 1px;
+                        HorizontalLayout {
+                            alignment: center; spacing: 5px;
+                            Rectangle {
+                                width: 14px;
+                                IconDisplay {
+                                    y: (parent.height - 14px) / 2;
+                                    icon: root.locked ? IconSet.Lock : IconSet.LockOpen;
+                                    size: 14px;
+                                    stroke: root.locked ? Theme.error-text : Theme.teal-accent;
+                                    stroke-width: 1.5; absolute-stroke-width: true;
+                                }
+                            }
+                            Text {
+                                text: root.locked ? "LOCKED" : "UNLOCKED";
+                                color: root.locked ? Theme.error-text : Theme.teal-accent;
+                                font-size: 11px; font-weight: 700;
+                                vertical-alignment: center;
+                                letter-spacing: 0.8px;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        PanelContent {
+            SliderCard {
+                label: "OPACITY"; value: root.ov-opacity;
+                minimum: 0.1; maximum: 1.0;
+                value-label: root.ov-opacity-label;
+                icon: IconSet.Blend; show-icon: true;
+                value-changed(v) => { root.ov-opacity-changed(v); }
+            }
+            SliderCard {
+                label: "SCALE"; value: root.scale;
+                minimum: 0.5; maximum: 2.5;
+                value-label: root.scale-label;
+                icon: IconSet.ImageUpscale; show-icon: true;
+                value-changed(v) => { root.scale-changed(v); }
+            }
+        }
+    }
+}

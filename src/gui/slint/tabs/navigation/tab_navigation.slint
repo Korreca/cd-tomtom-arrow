@@ -1,0 +1,444 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Navigation tab — assembles the two-column layout from its panel components.
+
+import { DataPanel }         from "./panels/data.slint";
+import { VisibilityPanel }   from "./panels/visibility.slint";
+import { OverlayPanel }      from "./panels/overlay.slint";
+import { DistanceTextPanel } from "./panels/distance_text.slint";
+import { InfoPanelWidget }   from "./panels/info.slint";
+import { IconDisplay, IconSet } from "@lucide";
+import { Theme }                from "../../common/theme.slint";
+
+// --- Coordinate spinbox for the Input Marker dialog --------------------------
+
+
+component CoordInput {
+    in-out property <string> text: "0";
+    in property <bool> has-error: false;
+    callback step-clicked(int);
+
+    // Slint's expression language has no regex or string-search (no contains/indexOf),
+    // so character validation must be done with explicit equality comparisons.
+    pure function is-digit(t: string) -> bool {
+        t == "0" || t == "1" || t == "2" || t == "3" || t == "4"
+        || t == "5" || t == "6" || t == "7" || t == "8" || t == "9"
+    }
+
+    height: 36px;
+    property <int> _dir: 0;
+
+    // Initial hold delay before rapid repeat starts (~400 ms)
+    delay-timer := Timer {
+        interval: 400ms; running: false;
+        triggered => { delay-timer.running = false; repeat-timer.running = true; }
+    }
+
+    // Rapid repeat fired while button is held
+    repeat-timer := Timer {
+        interval: 80ms; running: false;
+        triggered => { if root._dir != 0 { root.step-clicked(root._dir); } }
+    }
+
+    Rectangle {
+        border-radius: 5px; border-width: 1px;
+        border-color: root.has-error ? Theme.error-border : Theme.btn-border;
+        background: Theme.spin-bg; clip: true;
+
+        HorizontalLayout {
+            spacing: 0; padding: 0;
+
+            dn-ta := TouchArea {
+                width: 32px;
+                pointer-event(e) => {
+                    if e.kind == PointerEventKind.down {
+                        root.step-clicked(-1);
+                        root._dir = -1;
+                        delay-timer.running = true;
+                    } else if e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel {
+                        delay-timer.running = false;
+                        repeat-timer.running = false;
+                        root._dir = 0;
+                    }
+                }
+                Rectangle {
+                    background: dn-ta.pressed ? Theme.btn-press
+                        : (dn-ta.has-hover ? Theme.btn-hover : Theme.btn-bg);
+                    Text {
+                        text: "\u{2212}";
+                        color: root.has-error ? Theme.error-text : Theme.teal;
+                        font-size: 20px; font-weight: 300;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+
+            Rectangle { width: 1px; background: root.has-error ? Theme.error-border : Theme.btn-border; }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: root.has-error ? Theme.error-bg : Theme.spin-bg;
+                clip: true;
+                TextInput {
+                    x: 6px; y: 0;
+                    width: parent.width - 12px; height: parent.height;
+                    text <=> root.text;
+                    color: root.has-error ? Theme.error-text : Theme.value;
+                    font-size: 15px; font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    key-pressed(event) => {
+                        // Navigation / control keys: always allow
+                        if event.text == Key.Backspace || event.text == Key.Delete
+                                || event.text == Key.LeftArrow || event.text == Key.RightArrow
+                                || event.text == Key.Home || event.text == Key.End
+                                || event.modifiers.control {
+                            EventResult.reject
+                        // Digits: always allow
+                        } else if is-digit(event.text) {
+                            EventResult.reject
+                        // '-': allow anywhere (parse::<f32>() rejects malformed input at confirm)
+                        } else if event.text == "-" {
+                            EventResult.reject
+                        // '.': allow (duplicate-dot caught by parse at confirm time)
+                        } else if event.text == "." {
+                            EventResult.reject
+                        } else {
+                            EventResult.accept
+                        }
+                    }
+                }
+            }
+
+            Rectangle { width: 1px; background: root.has-error ? Theme.error-border : Theme.btn-border; }
+
+            up-ta := TouchArea {
+                width: 32px;
+                pointer-event(e) => {
+                    if e.kind == PointerEventKind.down {
+                        root.step-clicked(1);
+                        root._dir = 1;
+                        delay-timer.running = true;
+                    } else if e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel {
+                        delay-timer.running = false;
+                        repeat-timer.running = false;
+                        root._dir = 0;
+                    }
+                }
+                Rectangle {
+                    background: up-ta.pressed ? Theme.btn-press
+                        : (up-ta.has-hover ? Theme.btn-hover : Theme.btn-bg);
+                    Text {
+                        text: "+";
+                        color: root.has-error ? Theme.error-text : Theme.teal;
+                        font-size: 18px; font-weight: 400;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Input Marker dialog box (exported; backdrop lives in ControlPanel) ------
+export component InputMarkerDialog inherits Rectangle {
+    in-out property <string> dialog-x: "0";
+    in-out property <string> dialog-y: "0";
+    in-out property <string> dialog-z: "0";
+    in-out property <bool>   dialog-x-error: false;
+    in-out property <bool>   dialog-y-error: false;
+    in-out property <bool>   dialog-z-error: false;
+    callback close();
+    callback confirm();
+    callback paste();
+    callback x-step(int);
+    callback y-step(int);
+    callback z-step(int);
+
+    width: 220px;
+    height: 242px;  // title (40) + inputs (14+36+10+36+10+36+10+36+14)
+    background: Theme.dialog-bg;
+    border-color: Theme.panel-border; border-width: 1px; border-radius: 8px;
+    clip: true;
+
+    // Absorb clicks so the backdrop TouchArea is not triggered inside the dialog
+    TouchArea { }
+
+    VerticalLayout {
+        spacing: 0; padding: 0;
+
+        // ── Title bar ─────────────────────────────────────────────────────────
+        Rectangle {
+            height: 40px;
+            background: Theme.titlebar-bg;
+
+            HorizontalLayout {
+                padding-left: 14px; spacing: 8px;
+                Rectangle {
+                    width: 18px;
+                    IconDisplay {
+                        x: 0; y: (parent.height - 16px) / 2;
+                        icon: IconSet.MapPin; size: 16px;
+                        stroke: Theme.teal; stroke-width: 1.5; absolute-stroke-width: true;
+                    }
+                }
+                Text {
+                    text: "INPUT MARKER"; color: Theme.teal;
+                    font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; letter-spacing: 1.0px;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                dlg-close-ta := TouchArea {
+                    width: 40px;
+                    clicked => { root.close(); }
+                    Rectangle {
+                        background: dlg-close-ta.has-hover ? Theme.close-red : transparent;
+                        IconDisplay {
+                            x: (parent.width - 16px) / 2; y: (parent.height - 16px) / 2;
+                            icon: IconSet.X; size: 16px;
+                            stroke: dlg-close-ta.has-hover ? #ffffff : Theme.wbtn-icon;
+                            stroke-width: 1.5; absolute-stroke-width: true;
+                        }
+                    }
+                }
+            }
+            Rectangle { y: parent.height - 1px; height: 1px; width: parent.width; background: Theme.titlebar-sep; }
+        }
+
+        // ── Coordinate inputs ─────────────────────────────────────────────────
+        VerticalLayout {
+            padding-left: 16px; padding-right: 16px;
+            padding-top: 14px; padding-bottom: 14px;
+            spacing: 10px;
+
+            HorizontalLayout { spacing: 10px; alignment: stretch;
+                Text { text: "X"; color: Theme.label; font-size: 14px; font-weight: 700; width: 16px; vertical-alignment: center; }
+                CoordInput {
+                    horizontal-stretch: 1;
+                    text <=> root.dialog-x;
+                    has-error: root.dialog-x-error;
+                    step-clicked(s) => { root.x-step(s); }
+                }
+            }
+
+            HorizontalLayout { spacing: 10px; alignment: stretch;
+                Text { text: "Y"; color: Theme.label; font-size: 14px; font-weight: 700; width: 16px; vertical-alignment: center; }
+                CoordInput {
+                    horizontal-stretch: 1;
+                    text <=> root.dialog-y;
+                    has-error: root.dialog-y-error;
+                    step-clicked(s) => { root.y-step(s); }
+                }
+            }
+
+            HorizontalLayout { spacing: 10px; alignment: stretch;
+                Text { text: "Z"; color: Theme.label; font-size: 14px; font-weight: 700; width: 16px; vertical-alignment: center; }
+                CoordInput {
+                    horizontal-stretch: 1;
+                    text <=> root.dialog-z;
+                    has-error: root.dialog-z-error;
+                    step-clicked(s) => { root.z-step(s); }
+                }
+            }
+
+            HorizontalLayout { spacing: 8px; height: 36px;
+
+                dlg-paste-ta := TouchArea {
+                    horizontal-stretch: 1;
+                    mouse-cursor: pointer;
+                    clicked => { root.paste(); }
+                    Rectangle {
+                        background: dlg-paste-ta.pressed ? Theme.btn-press
+                            : (dlg-paste-ta.has-hover ? Theme.btn-hover : Theme.btn-bg);
+                        border-color: Theme.btn-border; border-width: 1px; border-radius: 5px;
+                        HorizontalLayout {
+                            spacing: 7px; alignment: center;
+                            IconDisplay {
+                                y: (parent.height - 15px) / 2;
+                                icon: IconSet.Clipboard; size: 15px;
+                                stroke: dlg-paste-ta.has-hover ? Theme.icon-hover : Theme.teal;
+                                stroke-width: 1.5; absolute-stroke-width: true;
+                            }
+                            Text {
+                                text: "PASTE";
+                                color: dlg-paste-ta.has-hover ? Theme.icon-hover : Theme.teal;
+                                font-size: 13px; font-weight: 700;
+                                vertical-alignment: center; letter-spacing: 0.5px;
+                            }
+                        }
+                    }
+                }
+
+                dlg-ok-ta := TouchArea {
+                    horizontal-stretch: 1;
+                    mouse-cursor: pointer;
+                    clicked => { root.confirm(); }
+                    Rectangle {
+                        background: dlg-ok-ta.pressed ? Theme.confirm-press
+                            : (dlg-ok-ta.has-hover ? Theme.confirm-hover : Theme.confirm-bg);
+                        border-color: Theme.teal; border-width: 1px; border-radius: 5px;
+                        Text {
+                            text: "OK";
+                            color: dlg-ok-ta.has-hover ? Theme.teal-hover : Theme.teal;
+                            font-size: 14px; font-weight: 700;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            letter-spacing: 1.0px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component NavigationTab inherits Rectangle {
+
+    // ── Data / Visibility properties ─────────────────────────────────────────
+    in property <string> position-text: "Waiting...";
+    in property <string> marker-text: "No marker detected";
+    in property <bool>   marker-detected: false;
+    in property <string> heading-text: "--";
+    in property <string> distance-text: "0.0 m";
+    in property <string> height-diff-text: "0.0 m";
+    in property <string> bearing-text: "0.0°";
+
+    in-out property <int>  hide-below: 10;
+    in-out property <bool> sticky-hide: true;
+    in-out property <int>  inactive-ms: 1200;
+    in-out property <bool> hide-on-inactive: true;
+
+    // ── Overlay properties ────────────────────────────────────────────────────
+    in-out property <float> ov-opacity: 0.5;
+    in-out property <float> scale: 1.0;
+    in-out property <bool>  locked: true;
+    in property <string>    ov-opacity-label: "50%";
+    in property <string>    scale-label: "1.00x";
+
+    // ── Distance Text properties ──────────────────────────────────────────────
+    in-out property <int>   text-offset-x: 0;
+    in-out property <int>   text-offset-y: 0;
+    in-out property <float> text-scale: 1.0;
+    in property <string>    text-scale-label: "1.00x";
+
+    // ── Info Panel properties ─────────────────────────────────────────────────
+    in-out property <int>   info-offset-x: 0;
+    in-out property <int>   info-offset-y: 0;
+    in-out property <float> info-scale: 1.0;
+    in-out property <bool>  info-hidden: false;
+    in property <string>    info-scale-label: "1.00x";
+
+    // ── Callbacks ─────────────────────────────────────────────────────────────
+    callback copy-position();
+    callback input-marker();
+    callback copy-marker();
+    callback paste-marker();
+    callback save-position();
+    callback save-marker();
+
+    callback hide-below-changed(int);
+    callback sticky-hide-changed(bool);
+    callback inactive-ms-changed(int);
+    callback hide-on-inactive-changed(bool);
+
+    callback lock-toggled();
+    callback ov-opacity-changed(float);
+    callback scale-changed(float);
+
+    callback text-offset-x-changed(int);
+    callback text-offset-y-changed(int);
+    callback text-scale-changed(float);
+
+    callback info-offset-x-changed(int);
+    callback info-offset-y-changed(int);
+    callback info-scale-changed(float);
+    callback info-hidden-changed(bool);
+
+    // ── Tab panels ────────────────────────────────────────────────────────────
+    HorizontalLayout {
+        spacing: 8px;
+
+        VerticalLayout {
+            width: 580px; horizontal-stretch: 0; spacing: 12px;
+
+            DataPanel {
+                position-text:    root.position-text;
+                marker-text:      root.marker-text;
+                marker-detected:  root.marker-detected;
+                heading-text:     root.heading-text;
+                distance-text:    root.distance-text;
+                height-diff-text: root.height-diff-text;
+                bearing-text:     root.bearing-text;
+                copy-position  => { root.copy-position(); }
+                input-marker   => { root.input-marker(); }
+                copy-marker    => { root.copy-marker(); }
+                paste-marker   => { root.paste-marker(); }
+                save-position  => { root.save-position(); }
+                save-marker    => { root.save-marker(); }
+            }
+
+            VisibilityPanel {
+                hide-below        <=> root.hide-below;
+                sticky-hide       <=> root.sticky-hide;
+                inactive-ms       <=> root.inactive-ms;
+                hide-on-inactive  <=> root.hide-on-inactive;
+                hide-below-changed(v)       => { root.hide-below-changed(v); }
+                sticky-hide-changed(v)      => { root.sticky-hide-changed(v); }
+                inactive-ms-changed(v)      => { root.inactive-ms-changed(v); }
+                hide-on-inactive-changed(v) => { root.hide-on-inactive-changed(v); }
+            }
+        }
+
+        VerticalLayout {
+            width: 580px; horizontal-stretch: 0; spacing: 12px;
+
+            OverlayPanel {
+                ov-opacity       <=> root.ov-opacity;
+                scale            <=> root.scale;
+                locked           <=> root.locked;
+                ov-opacity-label:    root.ov-opacity-label;
+                scale-label:         root.scale-label;
+                lock-toggled         => { root.lock-toggled(); }
+                ov-opacity-changed(v) => { root.ov-opacity-changed(v); }
+                scale-changed(v)      => { root.scale-changed(v); }
+            }
+
+            DistanceTextPanel {
+                text-offset-x    <=> root.text-offset-x;
+                text-offset-y    <=> root.text-offset-y;
+                text-scale       <=> root.text-scale;
+                text-scale-label:    root.text-scale-label;
+                text-offset-x-changed(v) => { root.text-offset-x-changed(v); }
+                text-offset-y-changed(v) => { root.text-offset-y-changed(v); }
+                text-scale-changed(v)    => { root.text-scale-changed(v); }
+            }
+
+            InfoPanelWidget {
+                info-offset-x    <=> root.info-offset-x;
+                info-offset-y    <=> root.info-offset-y;
+                info-scale       <=> root.info-scale;
+                info-hidden      <=> root.info-hidden;
+                info-scale-label:    root.info-scale-label;
+                info-offset-x-changed(v) => { root.info-offset-x-changed(v); }
+                info-offset-y-changed(v) => { root.info-offset-y-changed(v); }
+                info-scale-changed(v)    => { root.info-scale-changed(v); }
+                info-hidden-changed(v)   => { root.info-hidden-changed(v); }
+            }
+
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+}

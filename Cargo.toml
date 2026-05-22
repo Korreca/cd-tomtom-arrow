@@ -1,0 +1,45 @@
+[package]
+name = "crimson_desert_tomtom"
+version = "0.2.46"
+edition = "2024"
+rust-version = "1.95"
+
+[[bin]]
+name = "CD_TomTom"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2"
+chrono = "0.4"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+slint = { version = "1.15", default-features = false, features = [
+    "backend-winit",
+    "renderer-software",
+    "raw-window-handle-06",
+    "std",
+    "compat-1-2",
+] }
+raw-window-handle = "0.6"
+lucide-slint = "1"
+
+[build-dependencies]
+winres = "0.1"
+slint-build = "1.15"
+lucide-slint = "1"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+strip = true

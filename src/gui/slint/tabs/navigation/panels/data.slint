@@ -1,0 +1,63 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Navigation Data panel — position, marker, heading, distance, height diff, bearing.
+
+import { IconSet } from "@lucide";
+import { Theme } from "../../../common/theme.slint";
+import { PanelCard, PanelContent, PanelHeader, NavRow } from "../../../common/widgets.slint";
+
+export component DataPanel inherits PanelCard {
+    in property <string> position-text: "Waiting...";
+    in property <string> marker-text: "No marker detected";
+    in property <bool>   marker-detected: false;
+    in property <string> heading-text: "--";
+    in property <string> distance-text: "0.0 m";
+    in property <string> height-diff-text: "0.0 m";
+    in property <string> bearing-text: "0.0°";
+
+    callback copy-position();
+    callback input-marker();
+    callback copy-marker();
+    callback paste-marker();
+    callback save-position();
+    callback save-marker();
+
+    VerticalLayout {
+        padding: 0; spacing: 0;
+        PanelHeader { icon: IconSet.Braces; title: "DATA"; }
+        PanelContent {
+            row-spacing: 0;
+            NavRow { icon: IconSet.LocateFixed; label: "POSITION"; value: root.position-text;
+                copyable: true; copy-clicked => { root.copy-position(); }
+                saveable: true; save-clicked => { root.save-position(); }
+            }
+            NavRow {
+                icon: IconSet.MapPin; label: "MARKER DEST.";
+                value: root.marker-text;
+                value-color: root.marker-detected ? Theme.teal : #C8962C;
+                inputable: true; input-clicked => { root.input-marker(); }
+                copyable: true; copy-clicked => { root.copy-marker(); }
+                pasteable: true; paste-clicked => { root.paste-marker(); }
+                saveable: true; save-clicked => { root.save-marker(); }
+            }
+            NavRow { icon: IconSet.Move3d;              label: "HEADING";      value: root.heading-text; }
+            NavRow { icon: IconSet.RulerDimensionLine; label: "DISTANCE";     value: root.distance-text; }
+            NavRow { icon: IconSet.Mountain;            label: "HEIGHT DIFF."; value: root.height-diff-text; }
+            NavRow { icon: IconSet.Navigation;          label: "BEARING";      value: root.bearing-text; }
+        }
+    }
+}

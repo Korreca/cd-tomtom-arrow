@@ -1,0 +1,99 @@
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Distance Text panel — text offset X/Y and text size scale.
+
+import { IconSet } from "@lucide";
+import { Theme } from "../../../common/theme.slint";
+import { PanelCard, PanelContent, PanelHeader, CtrlRow, CtrlIcon, TomSpin, TomSlider } from "../../../common/widgets.slint";
+
+export component DistanceTextPanel inherits PanelCard {
+    bg: #202123;
+
+    in-out property <int>   text-offset-x: 0;
+    in-out property <int>   text-offset-y: 0;
+    in-out property <float> text-scale: 1.0;
+
+    in property <string> text-scale-label: "1.00x";
+
+    callback text-offset-x-changed(int);
+    callback text-offset-y-changed(int);
+    callback text-scale-changed(float);
+
+    VerticalLayout {
+        padding: 0; spacing: 0;
+        PanelHeader { icon: IconSet.CaseSensitive; title: "DISTANCE TEXT"; }
+        PanelContent {
+            CtrlRow {
+                CtrlIcon { icon: IconSet.MoveHorizontal; }
+                Text {
+                    text: "OFFSET X";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 76px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.text-offset-x; minimum: -200;
+                        maximum: 200; step: 1;
+                        value-changed(v) => { root.text-offset-x-changed(v); }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                CtrlIcon { icon: IconSet.MoveVertical; }
+                Text {
+                    text: "OFFSET Y";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 76px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center; horizontal-stretch: 0;
+                    TomSpin {
+                        value: root.text-offset-y; minimum: -200;
+                        maximum: 200; step: 1;
+                        value-changed(v) => { root.text-offset-y-changed(v); }
+                    }
+                }
+            }
+            CtrlRow {
+                CtrlIcon { icon: IconSet.MoveDiagonal; }
+                Text {
+                    text: "TEXT SIZE";
+                    color: Theme.label; font-size: 14px; font-weight: 700;
+                    vertical-alignment: center; width: 84px;
+                    letter-spacing: 0.2px;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    TomSlider {
+                        value: root.text-scale;
+                        minimum: 0.5; maximum: 2.5;
+                        value-changed(v) => { root.text-scale-changed(v); }
+                    }
+                }
+                Text {
+                    text: root.text-scale-label; color: Theme.label;
+                    font-size: 15px; font-weight: 700;
+                    width: 52px; horizontal-alignment: right;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
