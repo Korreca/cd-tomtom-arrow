@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -27,7 +27,9 @@ pub struct ProcessHandle {
 impl ProcessHandle {
     /// Create a new handle wrapper. The handle is assumed to be valid.
     pub fn new(handle: *mut c_void) -> Self {
-        Self { handle: HANDLE(handle) }
+        Self {
+            handle: HANDLE(handle),
+        }
     }
 
     /// Get the raw pointer for Win32 calls (compatible with winapi and windows crates).

@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -30,12 +30,12 @@ impl CaveGenerator {
     /// Memory offsets within the shared block (total 0x1000 = 4096 bytes).
     pub const BLOCK_SIZE: u64 = 0x1000;
     pub const OFF_TRAVEL_DATA: u64 = 0x000; // 64 bytes for position data
-    pub const OFF_MAP_DATA: u64 = 0x040;    // 16 bytes for marker data
-    pub const OFF_CAM_DATA: u64 = 0x090;    // 4 bytes for camera heading
-    pub const OFF_CAVE_ENTITY: u64 = 0x100;   // Code cave entity
-    pub const OFF_CAVE_POSITION: u64 = 0x180;  // Code cave position
-    pub const OFF_CAVE_MAP: u64 = 0x200;       // Code cave map
-    pub const OFF_CAVE_CAM: u64 = 0x280;       // Code cave CAM
+    pub const OFF_MAP_DATA: u64 = 0x040; // 16 bytes for marker data
+    pub const OFF_CAM_DATA: u64 = 0x090; // 4 bytes for camera heading
+    pub const OFF_CAVE_ENTITY: u64 = 0x100; // Code cave entity
+    pub const OFF_CAVE_POSITION: u64 = 0x180; // Code cave position
+    pub const OFF_CAVE_MAP: u64 = 0x200; // Code cave map
+    pub const OFF_CAVE_CAM: u64 = 0x280; // Code cave CAM
 
     /// Sizes of original hooked instructions (bytes to replace with jumps).
     pub const HOOK_ENTITY_SIZE: usize = 8;
@@ -250,9 +250,9 @@ mod tests {
         let cave_cam = CaveGenerator::build_cave_cam(0x400000, 0x500000);
 
         // All caves should fit in their allocated regions
-        assert!(cave_entity.len() <= 128);   // OFF_CAVE_ENTITY to OFF_CAVE_POSITION is 0x80 bytes
+        assert!(cave_entity.len() <= 128); // OFF_CAVE_ENTITY to OFF_CAVE_POSITION is 0x80 bytes
         assert!(cave_position.len() <= 128); // OFF_CAVE_POSITION to OFF_CAVE_MAP is 0x80 bytes
-        assert!(cave_map.len() <= 128);      // OFF_CAVE_MAP to OFF_CAVE_CAM is 0x80 bytes
-        assert!(cave_cam.len() <= 256);      // OFF_CAVE_CAM to end of block
+        assert!(cave_map.len() <= 128); // OFF_CAVE_MAP to OFF_CAVE_CAM is 0x80 bytes
+        assert!(cave_cam.len() <= 256); // OFF_CAVE_CAM to end of block
     }
 }

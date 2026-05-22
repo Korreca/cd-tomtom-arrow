@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -31,10 +31,10 @@ pub struct Pattern {
 /// Scanned addresses from all patterns.
 #[derive(Debug, Clone)]
 pub struct ScanResults {
-    pub entity: u64,      // AOB_ENTITY + 3
-    pub position: u64,    // AOB_POS + 0
-    pub map: u64,         // AOB_MAP + 4
-    pub camera: u64,      // AOB_CAM + 0
+    pub entity: u64,       // AOB_ENTITY + 3
+    pub position: u64,     // AOB_POS + 0
+    pub map: u64,          // AOB_MAP + 4
+    pub camera: u64,       // AOB_CAM + 0
     pub world_offset: u64, // AOB_WORLD resolved with rel32
 }
 
@@ -102,7 +102,10 @@ impl Scanner {
     /// # Returns
     /// All resolved hook addresses, or error if any pattern not found
     pub fn scan(module_data: &[u8], module_base: u64) -> AppResult<ScanResults> {
-        crate::clog!("[SCANNER] Starting search for 5 patterns in {} bytes", module_data.len());
+        crate::clog!(
+            "[SCANNER] Starting search for 5 patterns in {} bytes",
+            module_data.len()
+        );
 
         crate::clog!("[SCANNER] Searching for ENTITY pattern...");
         let entity = Self::find_pattern(&Self::ENTITY, module_data, module_base)?;
@@ -136,11 +139,7 @@ impl Scanner {
     }
 
     /// Find a single pattern by name and offset in module memory.
-    fn find_pattern(
-        pattern: &Pattern,
-        module_data: &[u8],
-        module_base: u64,
-    ) -> AppResult<u64> {
+    fn find_pattern(pattern: &Pattern, module_data: &[u8], module_base: u64) -> AppResult<u64> {
         let idx = module_data
             .windows(pattern.pattern.len())
             .position(|window| window == pattern.pattern)

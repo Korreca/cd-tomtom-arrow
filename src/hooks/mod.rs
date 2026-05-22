@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -94,9 +94,7 @@ impl HookManager {
     /// Success if all hooks installed, or error with partial state
     pub fn install(&mut self, results: &ScanResults) -> AppResult<()> {
         if self.installed {
-            return Err(AppError::HookFailed(
-                "Hooks already installed".to_string(),
-            ));
+            return Err(AppError::HookFailed("Hooks already installed".to_string()));
         }
 
         // Allocate code/data block
@@ -147,10 +145,18 @@ impl HookManager {
     /// Allocate the code/data block near hook locations for rel32 jump support.
     fn allocate_block(&mut self, results: &ScanResults) -> AppResult<()> {
         let block_size = CaveGenerator::BLOCK_SIZE;
-        crate::clog!("[ALLOC] Attempting to allocate {} bytes for hooks", block_size);
+        crate::clog!(
+            "[ALLOC] Attempting to allocate {} bytes for hooks",
+            block_size
+        );
 
         // Try to allocate near one of the hook locations (for rel32 jump support)
-        let anchors = [results.entity, results.position, results.map, results.camera];
+        let anchors = [
+            results.entity,
+            results.position,
+            results.map,
+            results.camera,
+        ];
         for &anchor in &anchors {
             crate::clog!("[ALLOC] Trying near 0x{:X}...", anchor);
             if let Ok(block) = self.alloc_near(anchor, block_size) {
@@ -164,7 +170,10 @@ impl HookManager {
         // Fallback: allocate anywhere (far mode, will need trampolines)
         crate::clog!("[ALLOC] Near allocation failed, falling back to any address (far mode)...");
         let block = self.memory.allocate(block_size as usize, None)?;
-        crate::clog!("[ALLOC] Allocated at 0x{:X} (far mode - trampolines needed)", block);
+        crate::clog!(
+            "[ALLOC] Allocated at 0x{:X} (far mode - trampolines needed)",
+            block
+        );
         self.block_base = block;
         self.far_mode = true;
         Ok(())
@@ -177,18 +186,29 @@ impl HookManager {
         const STEP: i64 = 0x100000; // 1MB step (was 64KB before, too slow)
         const MAX_OFFSET: i64 = 0x8000000; // ±128MB (was ±2GB, too slow)
 
-        crate::clog!("[ALLOC] Trying offsets near 0x{:X}, ±{}MB...", near_addr, MAX_OFFSET / 0x100000);
+        crate::clog!(
+            "[ALLOC] Trying offsets near 0x{:X}, ±{}MB...",
+            near_addr,
+            MAX_OFFSET / 0x100000
+        );
 
         let mut attempt_count = 0;
         // Try offsets in ±128MB range
         for offset in (STEP..MAX_OFFSET).step_by(STEP as usize) {
             attempt_count += 1;
             if attempt_count % 10 == 0 {
-                crate::clog!("[ALLOC]   ...attempt {} (offset 0x{:X})...", attempt_count, offset);
+                crate::clog!(
+                    "[ALLOC]   ...attempt {} (offset 0x{:X})...",
+                    attempt_count,
+                    offset
+                );
             }
 
             // Try positive offset
-            if let Ok(addr) = self.memory.allocate(size as usize, Some((near_addr as i64 + offset) as u64)) {
+            if let Ok(addr) = self
+                .memory
+                .allocate(size as usize, Some((near_addr as i64 + offset) as u64))
+            {
                 crate::clog!("[ALLOC] Success at offset +0x{:X}", offset);
                 return Ok(addr);
             }
@@ -201,7 +221,11 @@ impl HookManager {
             }
         }
 
-        crate::clog!("[ALLOC] Could not find rel32-range allocation in {}/{} attempts", attempt_count, (MAX_OFFSET / STEP) * 2);
+        crate::clog!(
+            "[ALLOC] Could not find rel32-range allocation in {}/{} attempts",
+            attempt_count,
+            (MAX_OFFSET / STEP) * 2
+        );
         Err(AppError::AllocFailed(
             "Could not allocate near target address".to_string(),
         ))
@@ -209,22 +233,26 @@ impl HookManager {
 
     /// Initialize data storage areas to zero.
     fn init_storage(&self) -> AppResult<()> {
-        crate::clog!("[HOOKS] Initializing data storage at 0x{:X}...", self.block_base);
-        
+        crate::clog!(
+            "[HOOKS] Initializing data storage at 0x{:X}...",
+            self.block_base
+        );
+
         // Travel data: 64 bytes at offset 0x000
         let zeros_64 = vec![0u8; 64];
         self.memory.write_bytes(self.block_base, &zeros_64)?;
 
         // Map data: 16 bytes at offset 0x040
         let zeros_16 = vec![0u8; 16];
-        self.memory.write_bytes(self.block_base + CaveGenerator::OFF_MAP_DATA, &zeros_16)?;
+        self.memory
+            .write_bytes(self.block_base + CaveGenerator::OFF_MAP_DATA, &zeros_16)?;
 
         // Camera data: 4 bytes (float 0.0) at offset 0x090
         self.memory.write_bytes(
             self.block_base + CaveGenerator::OFF_CAM_DATA,
             &(0.0f32).to_le_bytes(),
         )?;
-        
+
         crate::clog!("[HOOKS] Data storage initialized");
         Ok(())
     }
@@ -276,11 +304,16 @@ impl HookManager {
                     "Cave exceeds allocated block: end=0x{end:X}"
                 )));
             }
-            
-            crate::clog!("[HOOKS] Writing cave {} at 0x{:X} ({} bytes)", label, addr, code.len());
+
+            crate::clog!(
+                "[HOOKS] Writing cave {} at 0x{:X} ({} bytes)",
+                label,
+                addr,
+                code.len()
+            );
             self.memory.write_bytes(addr, &code)?;
         }
-        
+
         crate::clog!("[HOOKS] All code caves written");
         Ok(())
     }
@@ -318,14 +351,19 @@ impl HookManager {
         for hook in hooks {
             self.patch_single_hook(&hook)?;
         }
-        
+
         crate::clog!("[HOOKS] All hooks patched successfully");
         Ok(())
     }
 
     /// Patch a single hook location.
     fn patch_single_hook(&mut self, hook: &HookConfig) -> AppResult<()> {
-        crate::clog!("[HOOKS] Patching hook {} at 0x{:X} ({} bytes)", hook.name, hook.address, hook.size);
+        crate::clog!(
+            "[HOOKS] Patching hook {} at 0x{:X} ({} bytes)",
+            hook.name,
+            hook.address,
+            hook.size
+        );
         let cave_addr = self.block_base + hook.cave_offset;
 
         // Save original bytes
@@ -334,7 +372,10 @@ impl HookManager {
 
         if self.far_mode {
             // Allocate trampoline for far jump
-            crate::clog!("[HOOKS] Using far mode - allocating trampoline for hook {}", hook.name);
+            crate::clog!(
+                "[HOOKS] Using far mode - allocating trampoline for hook {}",
+                hook.name
+            );
             let tramp_addr = self.memory.allocate(64, Some(hook.address))?;
             self.trampolines.push(tramp_addr);
             crate::clog!("[HOOKS] Trampoline at 0x{:X}", tramp_addr);
@@ -349,7 +390,10 @@ impl HookManager {
             crate::clog!("[HOOKS] Hook {} patched via trampoline", hook.name);
         } else {
             // Direct rel32 jump
-            crate::clog!("[HOOKS] Using direct rel32 jump to cave at 0x{:X}", cave_addr);
+            crate::clog!(
+                "[HOOKS] Using direct rel32 jump to cave at 0x{:X}",
+                cave_addr
+            );
             let patch = Patcher::jmp_patch(hook.address, cave_addr, hook.size)?;
             self.memory.write_bytes(hook.address, &patch)?;
         }

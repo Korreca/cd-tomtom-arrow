@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -82,7 +82,10 @@ mod tests {
 
     #[test]
     fn display_rel_jmp_out_of_range_includes_hex_addresses() {
-        let e = AppError::RelJmpOutOfRange { from: 0x400000, to: 0x90000000 };
+        let e = AppError::RelJmpOutOfRange {
+            from: 0x400000,
+            to: 0x90000000,
+        };
         let msg = e.to_string();
         assert!(msg.contains("400000"), "from address missing: {msg}");
         assert!(msg.contains("90000000"), "to address missing: {msg}");

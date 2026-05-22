@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -20,25 +20,25 @@ pub struct AppSnapshot {
     // Connection status
     pub process_attached: bool,
     pub hooks_installed: bool,
-    
+
     // Position data
     pub player_x: Option<f32>,
     pub player_y: Option<f32>,
     pub player_z: Option<f32>,
     pub camera_heading: Option<f32>,
-    
+
     // Marker data
     pub marker_x: Option<f32>,
     pub marker_y: Option<f32>,
     pub marker_z: Option<f32>,
     pub marker_detected: bool,
-    
+
     // Overlay display
     pub overlay_visible: bool,
     pub distance: f32,
     pub turn_angle: f32,
     pub height_diff: f32,
-    
+
     // Debug logs
     pub debug_text: String,
 

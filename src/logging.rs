@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -55,9 +55,15 @@ impl DebugLogger {
 
     /// Get the last N lines as a single string.
     pub fn get_display_text(&self, lines: usize) -> String {
-        let Ok(buf) = self.buffer.lock() else { return String::new(); };
+        let Ok(buf) = self.buffer.lock() else {
+            return String::new();
+        };
         let skip = buf.len().saturating_sub(lines);
-        buf.iter().skip(skip).cloned().collect::<Vec<_>>().join("\n")
+        buf.iter()
+            .skip(skip)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     /// Get the current display text (last 40 lines).

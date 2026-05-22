@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -26,13 +26,9 @@ fn main() {
             .expect("Failed to compile resource script");
     }
 
-    let library_paths = HashMap::from([(
-        "lucide".to_string(),
-        PathBuf::from(lucide_slint::lib()),
-    )]);
+    let library_paths = HashMap::from([("lucide".to_string(), PathBuf::from(lucide_slint::lib()))]);
 
-    let config = slint_build::CompilerConfiguration::new()
-        .with_library_paths(library_paths);
+    let config = slint_build::CompilerConfiguration::new().with_library_paths(library_paths);
 
     slint_build::compile_with_config("src/gui/slint/control_panel.slint", config)
         .expect("Slint build failed");

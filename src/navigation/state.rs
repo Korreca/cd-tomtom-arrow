@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -88,11 +88,7 @@ impl RuntimeState {
 
     /// Get current overlay display state snapshot.
     pub fn get_overlay_display(&self) -> OverlayDisplayState {
-        self.overlay
-            .lock()
-            .ok()
-            .map(|o| *o)
-            .unwrap_or_default()
+        self.overlay.lock().ok().map(|o| *o).unwrap_or_default()
     }
 }
 
@@ -156,8 +152,15 @@ mod tests {
         // Clone shares the same Arcs — a write on one is visible on the other.
         let rs = RuntimeState::new();
         let rs2 = rs.clone();
-        let nav = NavigationState { player_pos: Some((1.0, 2.0, 3.0)), ..Default::default() };
+        let nav = NavigationState {
+            player_pos: Some((1.0, 2.0, 3.0)),
+            ..Default::default()
+        };
         rs.set_navigation(nav);
-        assert_eq!(rs2.get_navigation().player_pos, Some((1.0, 2.0, 3.0)), "clone sees same Arc");
+        assert_eq!(
+            rs2.get_navigation().player_pos,
+            Some((1.0, 2.0, 3.0)),
+            "clone sees same Arc"
+        );
     }
 }

@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -25,12 +25,12 @@ pub use memory::RemoteMemory;
 use std::mem;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32First, Process32Next, Module32First, Module32Next,
-    TH32CS_SNAPPROCESS, TH32CS_SNAPMODULE, PROCESSENTRY32, MODULEENTRY32,
+    CreateToolhelp32Snapshot, MODULEENTRY32, Module32First, Module32Next, PROCESSENTRY32,
+    Process32First, Process32Next, TH32CS_SNAPMODULE, TH32CS_SNAPPROCESS,
 };
 use windows::Win32::System::Threading::{
-    GetExitCodeProcess, OpenProcess,
-    PROCESS_QUERY_INFORMATION, PROCESS_VM_READ, PROCESS_VM_WRITE, PROCESS_VM_OPERATION,
+    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_OPERATION,
+    PROCESS_VM_READ, PROCESS_VM_WRITE,
 };
 
 /// Information about a loaded module in a process.
@@ -97,11 +97,10 @@ impl Process {
     fn find_process_id(process_name: &str) -> AppResult<u32> {
         crate::clog!("[PROCESS] Searching for process: {}", process_name);
         unsafe {
-            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
-                .map_err(|_| {
-                    crate::clog!("[PROCESS] ERROR: Failed to create process snapshot");
-                    AppError::ProcessNotFound("Failed to create snapshot".to_string())
-                })?;
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).map_err(|_| {
+                crate::clog!("[PROCESS] ERROR: Failed to create process snapshot");
+                AppError::ProcessNotFound("Failed to create snapshot".to_string())
+            })?;
 
             let mut entry: PROCESSENTRY32 = mem::zeroed();
             entry.dwSize = mem::size_of::<PROCESSENTRY32>() as u32;
@@ -111,7 +110,11 @@ impl Process {
                     let exe_name = char_array_to_string(&entry.szExeFile);
 
                     if exe_name.eq_ignore_ascii_case(process_name) {
-                        crate::clog!("[PROCESS] Found {} at PID={}", exe_name, entry.th32ProcessID);
+                        crate::clog!(
+                            "[PROCESS] Found {} at PID={}",
+                            exe_name,
+                            entry.th32ProcessID
+                        );
                         let _ = CloseHandle(snapshot);
                         return Ok(entry.th32ProcessID);
                     }
@@ -133,11 +136,18 @@ impl Process {
         crate::clog!("[PROCESS] Opening handle for PID={}", pid);
         unsafe {
             let handle = OpenProcess(
-                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION,
+                PROCESS_QUERY_INFORMATION
+                    | PROCESS_VM_READ
+                    | PROCESS_VM_WRITE
+                    | PROCESS_VM_OPERATION,
                 false,
                 pid,
-            ).map_err(|_| {
-                crate::clog!("[PROCESS] ERROR: OpenProcess failed for PID {} - handle is NULL", pid);
+            )
+            .map_err(|_| {
+                crate::clog!(
+                    "[PROCESS] ERROR: OpenProcess failed for PID {} - handle is NULL",
+                    pid
+                );
                 AppError::AttachFailed(format!("OpenProcess failed for PID {pid}"))
             })?;
 
@@ -147,13 +157,19 @@ impl Process {
     }
 
     /// Get module information by name within a process.
-    fn get_module_info(_handle: &ProcessHandle, module_name: &str, pid: u32) -> AppResult<ModuleInfo> {
+    fn get_module_info(
+        _handle: &ProcessHandle,
+        module_name: &str,
+        pid: u32,
+    ) -> AppResult<ModuleInfo> {
         unsafe {
-            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid)
-                .map_err(|_| {
-                    crate::clog!("[PROCESS] ERROR: Failed to create module snapshot for PID={}", pid);
-                    AppError::AttachFailed("Failed to snapshot modules".to_string())
-                })?;
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid).map_err(|_| {
+                crate::clog!(
+                    "[PROCESS] ERROR: Failed to create module snapshot for PID={}",
+                    pid
+                );
+                AppError::AttachFailed("Failed to snapshot modules".to_string())
+            })?;
 
             let mut entry: MODULEENTRY32 = mem::zeroed();
             entry.dwSize = mem::size_of::<MODULEENTRY32>() as u32;
@@ -163,7 +179,12 @@ impl Process {
                     let mod_name = char_array_to_string(&entry.szModule);
 
                     if mod_name.eq_ignore_ascii_case(module_name) {
-                        crate::clog!("[PROCESS] Module '{}' at 0x{:X} (size={})", mod_name, entry.modBaseAddr as u64, entry.modBaseSize);
+                        crate::clog!(
+                            "[PROCESS] Module '{}' at 0x{:X} (size={})",
+                            mod_name,
+                            entry.modBaseAddr as u64,
+                            entry.modBaseSize
+                        );
                         let _ = CloseHandle(snapshot);
                         return Ok(ModuleInfo {
                             name: mod_name,
@@ -179,7 +200,11 @@ impl Process {
             }
 
             let _ = CloseHandle(snapshot);
-            crate::clog!("[PROCESS] ERROR: Module '{}' not found in PID={}", module_name, pid);
+            crate::clog!(
+                "[PROCESS] ERROR: Module '{}' not found in PID={}",
+                module_name,
+                pid
+            );
             Err(AppError::AttachFailed(format!(
                 "Module '{module_name}' not found in process"
             )))

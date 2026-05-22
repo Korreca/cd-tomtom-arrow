@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -70,19 +70,19 @@ pub struct OverlayConfig {
 }
 
 // ── Validation bounds ────────────────────────────────────────────────────────
-const OPACITY_MIN: f32     = 0.10;
-const OPACITY_MAX: f32     = 1.0;
-const SCALE_MIN: f32       = 0.5;
-const SCALE_MAX: f32       = 2.5;
-const OFFSET_MIN: i32      = -250;
-const OFFSET_MAX: i32      = 250;
-const HIDE_BELOW_MAX: u32  = 500;
+const OPACITY_MIN: f32 = 0.10;
+const OPACITY_MAX: f32 = 1.0;
+const SCALE_MIN: f32 = 0.5;
+const SCALE_MAX: f32 = 2.5;
+const OFFSET_MIN: i32 = -250;
+const OFFSET_MAX: i32 = 250;
+const HIDE_BELOW_MAX: u32 = 500;
 const INACTIVE_MS_MIN: u32 = 500;
 const INACTIVE_MS_MAX: u32 = 10_000;
-const WIN_WIDTH_MIN: u32   = 920;
-const WIN_WIDTH_MAX: u32   = 3_840;
-const WIN_HEIGHT_MIN: u32  = 680;
-const WIN_HEIGHT_MAX: u32  = 2_160;
+const WIN_WIDTH_MIN: u32 = 920;
+const WIN_WIDTH_MAX: u32 = 3_840;
+const WIN_HEIGHT_MIN: u32 = 680;
+const WIN_HEIGHT_MAX: u32 = 2_160;
 
 impl Default for OverlayConfig {
     fn default() -> Self {
@@ -163,7 +163,6 @@ fn default_true() -> bool {
     true
 }
 
-
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde serialize_with requires &T
 fn serialize_f32_2dp<S: Serializer>(val: &f32, s: S) -> Result<S::Ok, S::Error> {
     let rounded = (f64::from(*val) * 100.0).round() / 100.0;
@@ -182,15 +181,14 @@ impl ConfigStore {
         let path = path.as_ref().to_path_buf();
         let path_exists = path.exists();
         let config = Config::load_from_file(&path).unwrap_or_default();
-        
+
         let store = Self { path, config };
-        
+
         // Create config file with defaults if it didn't exist
-        if !path_exists
-            && let Err(e) = store.save() {
-                crate::clog!("Warning: Could not create config.json: {}", e);
-            }
-        
+        if !path_exists && let Err(e) = store.save() {
+            crate::clog!("Warning: Could not create config.json: {}", e);
+        }
+
         store
     }
 
@@ -241,18 +239,24 @@ impl Config {
 
     /// Validate config values are in safe ranges.
     pub fn validate(&mut self) {
-        self.overlay.opacity     = self.overlay.opacity.clamp(OPACITY_MIN, OPACITY_MAX);
-        self.overlay.scale       = self.overlay.scale.clamp(SCALE_MIN, SCALE_MAX);
-        self.overlay.text_scale  = self.overlay.text_scale.clamp(SCALE_MIN, SCALE_MAX);
+        self.overlay.opacity = self.overlay.opacity.clamp(OPACITY_MIN, OPACITY_MAX);
+        self.overlay.scale = self.overlay.scale.clamp(SCALE_MIN, SCALE_MAX);
+        self.overlay.text_scale = self.overlay.text_scale.clamp(SCALE_MIN, SCALE_MAX);
         self.overlay.text_offset_x = self.overlay.text_offset_x.clamp(OFFSET_MIN, OFFSET_MAX);
         self.overlay.text_offset_y = self.overlay.text_offset_y.clamp(OFFSET_MIN, OFFSET_MAX);
-        self.overlay.hide_below_m  = self.overlay.hide_below_m.min(HIDE_BELOW_MAX);
-        self.overlay.inactive_ms   = self.overlay.inactive_ms.clamp(INACTIVE_MS_MIN, INACTIVE_MS_MAX);
-        self.overlay.info_scale    = self.overlay.info_scale.clamp(SCALE_MIN, SCALE_MAX);
+        self.overlay.hide_below_m = self.overlay.hide_below_m.min(HIDE_BELOW_MAX);
+        self.overlay.inactive_ms = self
+            .overlay
+            .inactive_ms
+            .clamp(INACTIVE_MS_MIN, INACTIVE_MS_MAX);
+        self.overlay.info_scale = self.overlay.info_scale.clamp(SCALE_MIN, SCALE_MAX);
         self.overlay.info_offset_x = self.overlay.info_offset_x.clamp(OFFSET_MIN, OFFSET_MAX);
         self.overlay.info_offset_y = self.overlay.info_offset_y.clamp(OFFSET_MIN, OFFSET_MAX);
-        self.main_window.width  = self.main_window.width.clamp(WIN_WIDTH_MIN, WIN_WIDTH_MAX);
-        self.main_window.height = self.main_window.height.clamp(WIN_HEIGHT_MIN, WIN_HEIGHT_MAX);
+        self.main_window.width = self.main_window.width.clamp(WIN_WIDTH_MIN, WIN_WIDTH_MAX);
+        self.main_window.height = self
+            .main_window
+            .height
+            .clamp(WIN_HEIGHT_MIN, WIN_HEIGHT_MAX);
     }
 }
 
@@ -265,10 +269,10 @@ pub fn save_overlay_config_to_file(path: &Path, overlay_config: &OverlayConfig) 
     } else {
         Config::default()
     };
-    
+
     // Update only the overlay section
     config.overlay = overlay_config.clone();
-    
+
     // Save back
     config.save_to_file(path)?;
     Ok(())
@@ -410,7 +414,10 @@ mod tests {
         save_overlay_config_to_file(&path, &overlay).expect("merge save failed");
 
         let loaded = Config::load_from_file(&path).expect("load failed");
-        assert_eq!(loaded.main_window.width, 1280, "main_window.width must survive merge");
+        assert_eq!(
+            loaded.main_window.width, 1280,
+            "main_window.width must survive merge"
+        );
         assert!((loaded.overlay.opacity - 0.5).abs() < 0.001);
 
         let _ = fs::remove_file(&path);

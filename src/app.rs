@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::clog;
 use crate::config::ConfigStore;
 use crate::error::AppResult;
+use crate::gui::app_snapshot::AppSnapshot;
 use crate::hooks::HookManager;
+use crate::navigation::state::RuntimeState;
 use crate::process::Process;
 use crate::scanner::Scanner;
-use crate::navigation::state::RuntimeState;
-use crate::gui::app_snapshot::AppSnapshot;
-use crate::clog;
 
 const MAX_ATTACH_ATTEMPTS: u32 = 5;
-const ATTACH_RETRY_TICKS:  u32 = 300;
+const ATTACH_RETRY_TICKS: u32 = 300;
 const HEIGHT_DIFF_THRESHOLD: f32 = 0.1;
 
 /// Main application state coordinating all subsystems.
@@ -96,7 +96,7 @@ impl AppState {
             // Only retry up to MAX_ATTACH_ATTEMPTS times (roughly every 5 seconds = ATTACH_RETRY_TICKS)
             if self.attach_retries >= ATTACH_RETRY_TICKS {
                 self.attach_retries = 0;
-                
+
                 // Check if we've exceeded max retry count
                 if self.attach_failure_count >= MAX_ATTACH_ATTEMPTS {
                     clog!("[ATTACH] Max retry attempts exceeded. Reconnect manually.");
@@ -104,7 +104,11 @@ impl AppState {
                     return Ok(());
                 }
 
-                clog!("[ATTACH] Retrying attach... (attempt {} of {})", self.attach_failure_count + 1, MAX_ATTACH_ATTEMPTS);
+                clog!(
+                    "[ATTACH] Retrying attach... (attempt {} of {})",
+                    self.attach_failure_count + 1,
+                    MAX_ATTACH_ATTEMPTS
+                );
                 match self.try_attach() {
                     Ok(()) => {
                         self.attach_failure_count = 0; // Reset on success
@@ -115,7 +119,9 @@ impl AppState {
 
                         // If it's a pattern not found error, stop completely
                         if matches!(e, crate::error::AppError::PatternNotFound(_)) {
-                            clog!("[ATTACH] AOB pattern not found - game executable may have changed. Stopping.");
+                            clog!(
+                                "[ATTACH] AOB pattern not found - game executable may have changed. Stopping."
+                            );
                             self.running = false;
                             return Ok(());
                         }
@@ -125,9 +131,12 @@ impl AppState {
         }
 
         // If attached, check process health
-        let is_alive = self.process.as_ref().is_some_and(super::process::Process::is_alive);
+        let is_alive = self
+            .process
+            .as_ref()
+            .is_some_and(super::process::Process::is_alive);
         let has_process = self.process.is_some();
-        
+
         if !is_alive && has_process {
             clog!("[PROCESS DEAD] Process died, detaching.");
             self.detach();
@@ -142,25 +151,32 @@ impl AppState {
                 //   marker      @ 0x40 (16 bytes, 3×f32 + u32)
                 //   camera_hdg  @ 0x90 ( 4 bytes, 1×f32)
                 const BLOCK_START: u64 = 0x20;
-                const BLOCK_SIZE:  usize = 0x74; // 0x94 - 0x20
+                const BLOCK_SIZE: usize = 0x74; // 0x94 - 0x20
 
                 let (pos, marker, heading) = if self.block_addr != 0 {
                     match memory.read_bytes(self.block_addr + BLOCK_START, BLOCK_SIZE) {
                         Ok(buf) => {
                             let f32_at = |off: usize| -> f32 {
-                                f32::from_le_bytes(buf[off..off+4].try_into().unwrap_or([0;4]))
+                                f32::from_le_bytes(buf[off..off + 4].try_into().unwrap_or([0; 4]))
                             };
                             let u32_at = |off: usize| -> u32 {
-                                u32::from_le_bytes(buf[off..off+4].try_into().unwrap_or([0;4]))
+                                u32::from_le_bytes(buf[off..off + 4].try_into().unwrap_or([0; 4]))
                             };
                             // player_pos: relative offset 0x00 (block 0x20)
                             let (px, py, pz) = (f32_at(0x00), f32_at(0x04), f32_at(0x08));
-                            let pos = if px == 0.0 && py == 0.0 && pz == 0.0 { None }
-                                      else { Some((px, py, pz)) };
+                            let pos = if px == 0.0 && py == 0.0 && pz == 0.0 {
+                                None
+                            } else {
+                                Some((px, py, pz))
+                            };
                             // marker: relative offset 0x20 (block 0x40)
                             let (mx, my, mz) = (f32_at(0x20), f32_at(0x24), f32_at(0x28));
                             let mflag = u32_at(0x2C);
-                            let marker = if mflag == 1 { Some((mx, my, mz, mflag)) } else { None };
+                            let marker = if mflag == 1 {
+                                Some((mx, my, mz, mflag))
+                            } else {
+                                None
+                            };
                             // camera heading: relative offset 0x70 (block 0x90)
                             let heading = Some(f32_at(0x70));
                             (pos, marker, heading)
@@ -173,21 +189,26 @@ impl AppState {
 
                 // World offset: separate address, single read (16 bytes)
                 let world_off = if self.world_offset_addr != 0 {
-                    memory.read_bytes(self.world_offset_addr, 16).ok().map(|buf| {
-                        let f32_at = |o: usize| f32::from_le_bytes(buf[o..o+4].try_into().unwrap_or([0;4]));
-                        (f32_at(0), f32_at(4), f32_at(8))
-                    })
+                    memory
+                        .read_bytes(self.world_offset_addr, 16)
+                        .ok()
+                        .map(|buf| {
+                            let f32_at = |o: usize| {
+                                f32::from_le_bytes(buf[o..o + 4].try_into().unwrap_or([0; 4]))
+                            };
+                            (f32_at(0), f32_at(4), f32_at(8))
+                        })
                 } else {
                     None
                 };
-                
+
                 // Calculate absolute position (local + world offsets)
                 let abs_pos = if let (Some((px, py, pz)), Some((ox, _oy, oz))) = (pos, world_off) {
                     Some((px + ox, py, pz + oz))
                 } else {
                     pos
                 };
-                
+
                 // Update navigation state
                 let mut nav = self.state.get_navigation();
                 nav.player_pos = abs_pos;
@@ -214,31 +235,37 @@ impl AppState {
                 self.last_game_marker = current_game_key;
 
                 // Last-set wins: manual overrides game until game sets a different marker
-                let effective_marker = self.manual_marker
+                let effective_marker = self
+                    .manual_marker
                     .map(|(x, y, z)| (x, y, z, 1u32))
                     .or(marker);
                 nav.marker_dest = effective_marker;
                 nav.camera_heading = heading;
                 self.state.set_navigation(nav);
-                
+
                 // Calculate bearing and turn_angle every tick if we have heading and marker
                 let mut display = self.state.get_overlay_display();
-                
-                if let (Some((px, py, pz)), Some((mx, my, mz, _flag))) = (abs_pos, effective_marker) {
+
+                if let (Some((px, py, pz)), Some((mx, my, mz, _flag))) = (abs_pos, effective_marker)
+                {
                     let dx = mx - px;
                     let dz = mz - pz;
                     let bearing = crate::navigation::math::bearing_to_marker(dx, dz);
                     let distance = crate::navigation::math::distance_2d(px, pz, mx, mz);
-                    
+
                     // Calculate turn angle relative to camera heading (or 0.0 if no heading)
                     let turn_angle = if let Some(chead) = heading {
                         crate::navigation::math::normalize_signed(bearing - chead)
                     } else {
                         0.0
                     };
-                    
+
                     // Calculate height difference only for markers with non-zero y (my != 0)
-                    let height_diff = if my.abs() > HEIGHT_DIFF_THRESHOLD { my - py } else { 0.0 };
+                    let height_diff = if my.abs() > HEIGHT_DIFF_THRESHOLD {
+                        my - py
+                    } else {
+                        0.0
+                    };
 
                     // Update display state
                     display.turn_angle = turn_angle;
@@ -252,7 +279,7 @@ impl AppState {
                     display.distance = 0.0;
                     display.height_diff = 0.0;
                 }
-                
+
                 self.state.set_overlay_display(display);
             }
         }
@@ -280,18 +307,25 @@ impl AppState {
         }
     }
 
-    /// Internal helper for attachment scanning. Separate function so we can 
+    /// Internal helper for attachment scanning. Separate function so we can
     /// catch errors and clean up before returning to try_attach.
     fn attach_with_scanning(&mut self, process: Process) -> AppResult<()> {
         // Scan for hook points
         let module = process.module();
-        clog!("[SCAN] Module: base=0x{:X}, size={} bytes", module.base_address, module.size);
+        clog!(
+            "[SCAN] Module: base=0x{:X}, size={} bytes",
+            module.base_address,
+            module.size
+        );
 
         // CRITICAL FIX: Only scan first 100MB (AOB patterns are always in code section at start)
         // This matches Python behavior which also only scanned beginning of module
         let scan_limit = std::cmp::min(module.size as usize, 100 * 1024 * 1024); // 100MB max
-        clog!("[SCAN] Only reading first {} MB for patterns (limit from {} bytes total)",
-              scan_limit / (1024 * 1024), module.size);
+        clog!(
+            "[SCAN] Only reading first {} MB for patterns (limit from {} bytes total)",
+            scan_limit / (1024 * 1024),
+            module.size
+        );
 
         // Read in 5MB chunks to avoid massive allocations
         const CHUNK_SIZE: usize = 5 * 1024 * 1024; // 5MB chunks
@@ -303,7 +337,9 @@ impl AppState {
 
         while offset < scan_limit {
             let to_read = std::cmp::min(CHUNK_SIZE, scan_limit - offset);
-            let chunk = process.memory().read_bytes(module.base_address + offset as u64, to_read)?;
+            let chunk = process
+                .memory()
+                .read_bytes(module.base_address + offset as u64, to_read)?;
             clog!("[SCAN] Chunk #{}: {} bytes", chunk_count + 1, chunk.len());
             chunks.push(chunk);
             offset += to_read;
@@ -327,7 +363,11 @@ impl AppState {
         // Store block address for memory reads
         self.block_addr = hook_manager.block_addr();
         self.world_offset_addr = scan_results.world_offset;
-        clog!("[ATTACH] Block=0x{:X}, WorldOffset=0x{:X}", self.block_addr, self.world_offset_addr);
+        clog!(
+            "[ATTACH] Block=0x{:X}, WorldOffset=0x{:X}",
+            self.block_addr,
+            self.world_offset_addr
+        );
 
         self.process = Some(process);
         self.hooks = Some(hook_manager);
@@ -427,8 +467,8 @@ impl Drop for AppState {
     }
 }
 
-/// SAFETY: AppState contains raw pointers from RemoteMemory, but all access is 
-/// protected by Mutex in Arc<Mutex<AppState>>. The raw pointers are only used 
+/// SAFETY: AppState contains raw pointers from RemoteMemory, but all access is
+/// protected by Mutex in Arc<Mutex<AppState>>. The raw pointers are only used
 /// within the bounds of a locked mutex, making thread-safe access safe.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for AppState {}

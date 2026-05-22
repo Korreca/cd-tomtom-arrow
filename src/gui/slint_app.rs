@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -17,28 +17,29 @@
 //! Slint control-panel bridge: creates the UI, wires callbacks, and runs
 //! the overlay window in a background thread.
 #![allow(clippy::cast_possible_truncation)] // intentional: display values are small and rounded
-#![allow(clippy::cast_precision_loss)]      // intentional: pixel coordinates fit f32 exactly
-#![allow(clippy::cast_possible_wrap)]       // intentional: u32 config values fit i32 in practice
+#![allow(clippy::cast_precision_loss)] // intentional: pixel coordinates fit f32 exactly
+#![allow(clippy::cast_possible_wrap)] // intentional: u32 config values fit i32 in practice
 
 slint::include_modules!();
 
 // ─── Map bounds (Crimson Desert world extents, rounded to nearest 5) ─────────
 const MAP_X_MIN: f32 = -16395.0;
-const MAP_X_MAX: f32 =   2315.0;
-const MAP_Y_MIN: f32 =      0.0;
-const MAP_Y_MAX: f32 =   3000.0;
-const MAP_Z_MIN: f32 =  -8535.0;
-const MAP_Z_MAX: f32 =   5495.0;
+const MAP_X_MAX: f32 = 2315.0;
+const MAP_Y_MIN: f32 = 0.0;
+const MAP_Y_MAX: f32 = 3000.0;
+const MAP_Z_MIN: f32 = -8535.0;
+const MAP_Z_MAX: f32 = 5495.0;
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use super::overlay_window::OverlayWindow;
+use super::win32_helpers::{
+    minimize_window, parse_xyz_clipboard, set_clipboard_text, window_logical_pos,
+};
 use crate::app::AppState;
 use crate::config::ConfigStore;
-use super::overlay_window::OverlayWindow;
-use super::win32_helpers::{minimize_window, parse_xyz_clipboard, set_clipboard_text,
-                           window_logical_pos};
 
 pub fn run(config_path: &str) {
     // ── 1. Shared state ───────────────────────────────────────────────────────
@@ -53,7 +54,11 @@ pub fn run(config_path: &str) {
     let (overlay_config, saved_window_pos) = {
         let store = ConfigStore::new(config_path);
         let oc = Arc::new(Mutex::new(store.config().overlay.clone()));
-        let pos = store.config().main_window.x.zip(store.config().main_window.y);
+        let pos = store
+            .config()
+            .main_window
+            .x
+            .zip(store.config().main_window.y);
         (oc, pos)
     };
 
@@ -69,7 +74,9 @@ pub fn run(config_path: &str) {
             }
             // Win32 message loop — drives WM_TIMER at 60 Hz (game tick + rendering)
             unsafe {
-                use windows::Win32::UI::WindowsAndMessaging::{MSG, GetMessageA, TranslateMessage, DispatchMessageA};
+                use windows::Win32::UI::WindowsAndMessaging::{
+                    DispatchMessageA, GetMessageA, MSG, TranslateMessage,
+                };
                 let mut msg: MSG = std::mem::zeroed();
                 while GetMessageA(&raw mut msg, None, 0, 0).as_bool() {
                     let _ = TranslateMessage(&raw const msg);
@@ -117,9 +124,10 @@ pub fn run(config_path: &str) {
 
     // Restore main-window position if saved
     if let Some((x, y)) = saved_window_pos {
-        ui.window().set_position(slint::WindowPosition::Logical(
-            slint::LogicalPosition::new(x as f32, y as f32),
-        ));
+        ui.window()
+            .set_position(slint::WindowPosition::Logical(slint::LogicalPosition::new(
+                x as f32, y as f32,
+            )));
     }
 
     // ── 5. Callbacks ─────────────────────────────────────────────────────────
@@ -166,16 +174,24 @@ pub fn run(config_path: &str) {
     });
 
     let oc = overlay_config.clone();
-    ui.on_hide_below_changed(move |v| { oc.lock().unwrap().hide_below_m = v.max(0).cast_unsigned(); });
+    ui.on_hide_below_changed(move |v| {
+        oc.lock().unwrap().hide_below_m = v.max(0).cast_unsigned();
+    });
 
     let oc = overlay_config.clone();
-    ui.on_inactive_ms_changed(move |v| { oc.lock().unwrap().inactive_ms = v.max(0).cast_unsigned(); });
+    ui.on_inactive_ms_changed(move |v| {
+        oc.lock().unwrap().inactive_ms = v.max(0).cast_unsigned();
+    });
 
     let oc = overlay_config.clone();
-    ui.on_text_offset_x_changed(move |v| { oc.lock().unwrap().text_offset_x = v; });
+    ui.on_text_offset_x_changed(move |v| {
+        oc.lock().unwrap().text_offset_x = v;
+    });
 
     let oc = overlay_config.clone();
-    ui.on_text_offset_y_changed(move |v| { oc.lock().unwrap().text_offset_y = v; });
+    ui.on_text_offset_y_changed(move |v| {
+        oc.lock().unwrap().text_offset_y = v;
+    });
 
     let oc = overlay_config.clone();
     ui.on_sticky_hide_changed(move |v| {
@@ -183,13 +199,19 @@ pub fn run(config_path: &str) {
     });
 
     let oc = overlay_config.clone();
-    ui.on_hide_on_inactive_changed(move |v| { oc.lock().unwrap().hide_on_inactive = v; });
+    ui.on_hide_on_inactive_changed(move |v| {
+        oc.lock().unwrap().hide_on_inactive = v;
+    });
 
     let oc = overlay_config.clone();
-    ui.on_info_offset_x_changed(move |v| { oc.lock().unwrap().info_offset_x = v; });
+    ui.on_info_offset_x_changed(move |v| {
+        oc.lock().unwrap().info_offset_x = v;
+    });
 
     let oc = overlay_config.clone();
-    ui.on_info_offset_y_changed(move |v| { oc.lock().unwrap().info_offset_y = v; });
+    ui.on_info_offset_y_changed(move |v| {
+        oc.lock().unwrap().info_offset_y = v;
+    });
 
     let oc = overlay_config.clone();
     let ui_weak = ui.as_weak();
@@ -201,7 +223,9 @@ pub fn run(config_path: &str) {
     });
 
     let oc = overlay_config.clone();
-    ui.on_info_hidden_changed(move |v| { oc.lock().unwrap().info_hidden = v; });
+    ui.on_info_hidden_changed(move |v| {
+        oc.lock().unwrap().info_hidden = v;
+    });
 
     let as_rc = app_state.clone();
     ui.on_reconnect_clicked(move || {
@@ -277,10 +301,16 @@ pub fn run(config_path: &str) {
     let ui_weak = ui.as_weak();
     ui.on_save_position({
         let ui_weak = ui_weak.clone();
-        move || { if let Some(u) = ui_weak.upgrade() { u.set_active_tab(2); } }
+        move || {
+            if let Some(u) = ui_weak.upgrade() {
+                u.set_active_tab(2);
+            }
+        }
     });
     ui.on_save_marker(move || {
-        if let Some(u) = ui_weak.upgrade() { u.set_active_tab(2); }
+        if let Some(u) = ui_weak.upgrade() {
+            u.set_active_tab(2);
+        }
     });
 
     // ── Input Marker dialog ───────────────────────────────────────────────────
@@ -367,15 +397,30 @@ pub fn run(config_path: &str) {
         u.set_dialog_z_error(z.is_err());
         if let (Ok(xv), Ok(yv), Ok(zv)) = (x, y, z) {
             if !(MAP_X_MIN..=MAP_X_MAX).contains(&xv) {
-                show_snack(&u, &snack_gen_cf, &format!("X must be in [{}, {}]", MAP_X_MIN as i32, MAP_X_MAX as i32), true);
+                show_snack(
+                    &u,
+                    &snack_gen_cf,
+                    &format!("X must be in [{}, {}]", MAP_X_MIN as i32, MAP_X_MAX as i32),
+                    true,
+                );
                 return;
             }
             if !(MAP_Y_MIN..=MAP_Y_MAX).contains(&yv) {
-                show_snack(&u, &snack_gen_cf, &format!("Y must be in [{}, {}]", MAP_Y_MIN as i32, MAP_Y_MAX as i32), true);
+                show_snack(
+                    &u,
+                    &snack_gen_cf,
+                    &format!("Y must be in [{}, {}]", MAP_Y_MIN as i32, MAP_Y_MAX as i32),
+                    true,
+                );
                 return;
             }
             if !(MAP_Z_MIN..=MAP_Z_MAX).contains(&zv) {
-                show_snack(&u, &snack_gen_cf, &format!("Z must be in [{}, {}]", MAP_Z_MIN as i32, MAP_Z_MAX as i32), true);
+                show_snack(
+                    &u,
+                    &snack_gen_cf,
+                    &format!("Z must be in [{}, {}]", MAP_Z_MIN as i32, MAP_Z_MAX as i32),
+                    true,
+                );
                 return;
             }
             if let Ok(mut state) = as_confirm.try_lock() {
@@ -396,7 +441,12 @@ pub fn run(config_path: &str) {
 
     ui.on_open_nexus(|| {
         std::process::Command::new("cmd")
-            .args(["/c", "start", "", "https://www.nexusmods.com/crimsondesert/mods/2189"])
+            .args([
+                "/c",
+                "start",
+                "",
+                "https://www.nexusmods.com/crimsondesert/mods/2189",
+            ])
             .spawn()
             .ok();
     });
@@ -413,9 +463,9 @@ pub fn run(config_path: &str) {
         // Destroy the overlay window so its Win32 message loop exits cleanly.
         unsafe {
             use std::ffi::CString;
-            use windows::core::PCSTR;
             use windows::Win32::Foundation::{LPARAM, WPARAM};
             use windows::Win32::UI::WindowsAndMessaging::{FindWindowA, PostMessageA, WM_CLOSE};
+            use windows::core::PCSTR;
             let class = CString::new("CrimsonDesertArrowOverlay").unwrap();
             let hwnd = FindWindowA(PCSTR(class.as_ptr().cast::<u8>()), PCSTR::null());
             if let Ok(hwnd) = hwnd {
@@ -444,7 +494,9 @@ pub fn run(config_path: &str) {
                 use windows::Win32::Foundation::POINT;
                 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
                 let mut pt = POINT { x: 0, y: 0 };
-                unsafe { let _ = GetCursorPos(&raw mut pt); }
+                unsafe {
+                    let _ = GetCursorPos(&raw mut pt);
+                }
                 let (wx, wy) = window_logical_pos(u.window());
                 *di.lock().unwrap() = Some((pt.x, pt.y, wx, wy));
             }
@@ -459,7 +511,9 @@ pub fn run(config_path: &str) {
                 use windows::Win32::Foundation::POINT;
                 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
                 let mut pt = POINT { x: 0, y: 0 };
-                unsafe { let _ = GetCursorPos(&raw mut pt); }
+                unsafe {
+                    let _ = GetCursorPos(&raw mut pt);
+                }
                 let sf = u.window().scale_factor();
                 let dx = (pt.x - ix) as f32 / sf;
                 let dy = (pt.y - iy) as f32 / sf;
@@ -535,9 +589,7 @@ pub fn run(config_path: &str) {
             ui.set_marker_detected(detected);
 
             // Distance, bearing & height diff
-            ui.set_distance_text(
-                format!("{:.1} m", snap.distance).into(),
-            );
+            ui.set_distance_text(format!("{:.1} m", snap.distance).into());
             ui.set_bearing_text(format!("{:.1}°", snap.turn_angle).into());
             let marker_y_zero = snap.marker_y.is_none_or(|y| y == 0.0);
             let height_txt = if !snap.marker_detected || marker_y_zero {
@@ -554,7 +606,9 @@ pub fn run(config_path: &str) {
             // Keep formatted labels in sync with current config (read from
             // overlay_config so stale UI property values don't reset the labels)
             if let Ok(cfg) = oc_timer.try_lock() {
-                ui.set_ov_opacity_label(format!("{}%", (cfg.opacity * 100.0).round() as i32).into());
+                ui.set_ov_opacity_label(
+                    format!("{}%", (cfg.opacity * 100.0).round() as i32).into(),
+                );
                 ui.set_scale_label(format!("{:.2}x", cfg.scale).into());
                 ui.set_text_scale_label(format!("{:.2}x", cfg.text_scale).into());
                 ui.set_info_scale_label(format!("{:.2}x", cfg.info_scale).into());
@@ -570,7 +624,10 @@ pub fn run(config_path: &str) {
     // ── 8. Save config after window closes ───────────────────────────────────
     if let (Ok(mut state), Ok(cfg)) = (app_state.try_lock(), overlay_config.try_lock()) {
         // Persist main-window position
-        let pos = ui.window().position().to_logical(ui.window().scale_factor());
+        let pos = ui
+            .window()
+            .position()
+            .to_logical(ui.window().scale_factor());
         state.config.config_mut().main_window.x = Some(pos.x as i32);
         state.config.config_mut().main_window.y = Some(pos.y as i32);
         // Persist overlay config
@@ -594,16 +651,17 @@ fn show_snack(ui: &ControlPanel, snack_gen: &Arc<AtomicU32>, message: &str, is_e
 
     let this_gen = snack_gen.fetch_add(1, Ordering::Relaxed) + 1;
     let gen_clone = snack_gen.clone();
-    let ui_weak  = ui.as_weak();
+    let ui_weak = ui.as_weak();
     let duration = ui.get_snack_duration_ms() as u64;
 
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(duration));
         let _ = slint::invoke_from_event_loop(move || {
             if gen_clone.load(Ordering::Relaxed) == this_gen
-                && let Some(u) = ui_weak.upgrade() {
-                    u.set_snack_open(false);
-                }
+                && let Some(u) = ui_weak.upgrade()
+            {
+                u.set_snack_open(false);
+            }
         });
     });
 }

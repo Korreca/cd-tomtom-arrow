@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -92,7 +92,6 @@ impl Patcher {
         patch.extend_from_slice(&target.to_le_bytes());
         patch
     }
-
 }
 
 #[cfg(test)]

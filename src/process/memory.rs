@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,11 +21,10 @@ use core::ffi::c_void;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory};
 use windows::Win32::System::Memory::{
-    VirtualAllocEx, VirtualFreeEx,
-    MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_EXECUTE_READWRITE,
+    MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAllocEx, VirtualFreeEx,
 };
 
-const REL32_RANGE: u64     = 0x7FFF_FFFF;
+const REL32_RANGE: u64 = 0x7FFF_FFFF;
 const MIN_USER_ADDRESS: u64 = 0x10000;
 
 /// Encapsulates remote memory read/write/alloc/free operations for a process.
@@ -54,9 +53,12 @@ impl RemoteMemory {
                 buffer.as_mut_ptr().cast::<c_void>(),
                 size,
                 Some(&raw mut bytes_read),
-            ).map_err(|e| AppError::ReadMemoryFailed(format!(
-                "ReadProcessMemory failed at 0x{address:X} (size {size}): {e}"
-            )))?;
+            )
+            .map_err(|e| {
+                AppError::ReadMemoryFailed(format!(
+                    "ReadProcessMemory failed at 0x{address:X} (size {size}): {e}"
+                ))
+            })?;
         }
 
         if bytes_read != size {
@@ -79,10 +81,15 @@ impl RemoteMemory {
                 data.as_ptr().cast::<c_void>(),
                 data.len(),
                 Some(&raw mut bytes_written),
-            ).map_err(|e| AppError::WriteMemoryFailed(format!(
-                "WriteProcessMemory failed at 0x{:X} (size {}): {}",
-                address, data.len(), e
-            )))?;
+            )
+            .map_err(|e| {
+                AppError::WriteMemoryFailed(format!(
+                    "WriteProcessMemory failed at 0x{:X} (size {}): {}",
+                    address,
+                    data.len(),
+                    e
+                ))
+            })?;
         }
 
         if bytes_written != data.len() {
@@ -139,12 +146,16 @@ impl RemoteMemory {
     /// If `near_address` is Some, try to allocate near that address (for rel32 jumps).
     /// Otherwise, allocate anywhere.
     pub fn allocate(&self, size: usize, near_address: Option<u64>) -> AppResult<u64> {
-        crate::clog!("[ALLOC] Allocating {} bytes (near: {:?})", size, near_address.map(|a| format!("0x{a:X}")));
+        crate::clog!(
+            "[ALLOC] Allocating {} bytes (near: {:?})",
+            size,
+            near_address.map(|a| format!("0x{a:X}"))
+        );
         if let Some(near) = near_address {
             // Try to allocate near the given address for rel32 jumps (±2GB range)
             // Same as Python: iterate with 64KB steps, same as alloc_near()
             const STEP: u64 = 0x10000; // 64KB steps (matches Python)
-            
+
             // Try offsets from 64KB up to ~2GB
             for offset in (STEP..REL32_RANGE).step_by(STEP as usize) {
                 for addr in [near.saturating_add(offset), near.saturating_sub(offset)] {
@@ -166,7 +177,11 @@ impl RemoteMemory {
                             // Check if allocated address is within rel32 range of original hook
                             let dist = (allocated_addr as i64 - near as i64).unsigned_abs();
                             if dist < REL32_RANGE {
-                                crate::clog!("[ALLOC] Success: allocated {} bytes at 0x{:X}", size, allocated_addr);
+                                crate::clog!(
+                                    "[ALLOC] Success: allocated {} bytes at 0x{:X}",
+                                    size,
+                                    allocated_addr
+                                );
                                 return Ok(allocated_addr);
                             }
                             // Too far away, free and continue searching
@@ -179,7 +194,11 @@ impl RemoteMemory {
 
         // Fall back to unrestricted allocation
         let result = self.allocate_at(0, size)?;
-        crate::clog!("[ALLOC] Fallback allocation: {} bytes at 0x{:X}", size, result);
+        crate::clog!(
+            "[ALLOC] Fallback allocation: {} bytes at 0x{:X}",
+            size,
+            result
+        );
         Ok(result)
     }
 
@@ -188,7 +207,11 @@ impl RemoteMemory {
         unsafe {
             let ptr = VirtualAllocEx(
                 self.process_handle,
-                if address == 0 { None } else { Some(address as *const c_void) },
+                if address == 0 {
+                    None
+                } else {
+                    Some(address as *const c_void)
+                },
                 size,
                 MEM_COMMIT | MEM_RESERVE,
                 PAGE_EXECUTE_READWRITE,
@@ -208,14 +231,9 @@ impl RemoteMemory {
     pub fn free(&self, address: u64) -> AppResult<()> {
         crate::clog!("[FREE] Freeing memory at 0x{:X}", address);
         unsafe {
-            VirtualFreeEx(
-                self.process_handle,
-                address as *mut c_void,
-                0,
-                MEM_RELEASE,
-            ).map_err(|e| AppError::FreeFailed(format!(
-                "VirtualFreeEx failed at 0x{address:X}: {e}"
-            )))?;
+            VirtualFreeEx(self.process_handle, address as *mut c_void, 0, MEM_RELEASE).map_err(
+                |e| AppError::FreeFailed(format!("VirtualFreeEx failed at 0x{address:X}: {e}")),
+            )?;
         }
 
         crate::clog!("[FREE] Free successful at 0x{:X}", address);

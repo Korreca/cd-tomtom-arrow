@@ -1,4 +1,4 @@
-﻿// CD_TomTom - Navigation overlay tool for Crimson Desert.
+// CD_TomTom - Navigation overlay tool for Crimson Desert.
 // Copyright (C) 2026 Korreca <https://github.com/Korreca/cd-tomtom-arrow/>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,9 +16,9 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crimson_desert_tomtom::clog;
 use crimson_desert_tomtom::gui::App;
 use crimson_desert_tomtom::logging;
-use crimson_desert_tomtom::clog;
 
 fn main() {
     logging::init();
@@ -42,4 +42,3 @@ fn main() {
 
     clog!("[*] Application shutdown complete");
 }
-

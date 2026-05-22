@@ -42,7 +42,7 @@ pub fn set_clipboard_text(text: &str) {
     use windows::Win32::System::DataExchange::{
         CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
     };
-    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock};
     let wide: Vec<u16> = OsStr::new(text)
         .encode_wide()
         .chain(std::iter::once(0))
@@ -67,9 +67,7 @@ pub fn set_clipboard_text(text: &str) {
 
 pub fn get_clipboard_text() -> Option<String> {
     use windows::Win32::Foundation::HGLOBAL;
-    use windows::Win32::System::DataExchange::{
-        CloseClipboard, GetClipboardData, OpenClipboard,
-    };
+    use windows::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
     use windows::Win32::System::Memory::{GlobalLock, GlobalUnlock};
     unsafe {
         if OpenClipboard(None).is_err() {
@@ -114,7 +112,7 @@ pub fn window_logical_pos(win: &slint::Window) -> (f32, f32) {
 pub fn minimize_window() {
     unsafe {
         use windows::Win32::UI::WindowsAndMessaging::{
-            GetForegroundWindow, ShowWindow, SW_MINIMIZE,
+            GetForegroundWindow, SW_MINIMIZE, ShowWindow,
         };
         let hwnd = GetForegroundWindow();
         if !hwnd.0.is_null() {
