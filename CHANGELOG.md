@@ -3,6 +3,11 @@
 Only published releases are listed here. Intermediate work-in-progress builds are not
 documented. Pre-1.0 versions do not follow a strict consecutive numbering scheme.
 
+## [0.2.47] - 2026-05-22
+
+### Fixed
+- **Camera AOB updated for game version 1.08.00** — the camera heading write instruction changed from `vmovss [r15+0x4A4], xmm2` to `vmovss [r15+0x4CC], xmm2` in the updated game binary. The scanner pattern and cave re-execution bytes have been updated to match.
+
 ## [0.2.46] - 2026-05-22
 
 Complete rewrite in Rust. The Python script and its runtime dependencies are no longer required.

@@ -12,6 +12,7 @@ A navigation overlay for **Crimson Desert** that renders a real-time directional
 | **Platform** | Windows 10 / 11 (64-bit) |
 | **Language** | Rust |
 | **License** | [GPL v3](LICENSE) |
+| **Releases** | [github.com/Korreca/cd-tomtom-arrow/releases](https://github.com/Korreca/cd-tomtom-arrow/releases) |
 | **Nexus Mods** | [crimsondesert/mods/2189](https://www.nexusmods.com/crimsondesert/mods/2189) |
 
 ---

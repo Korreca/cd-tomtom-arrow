@@ -806,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "crimson_desert_tomtom"
-version = "0.2.46"
+version = "0.2.47"
 dependencies = [
  "chrono",
  "lucide-slint",
